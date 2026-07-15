@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  PLATFORM_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum ContentType {
+  PDF
+  VIDEO
+}
+
+model User {
+  id       String  @id @default(cuid())
+  name     String?
+  email    String  @unique
+  password String?
+  role     Role
+
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  gradeId String?
+  grade   Grade?  @relation(fields: [gradeId], references: [id], onDelete: SetNull)
+
+  classId String?
+  class   ClassSection? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  contents    Content[]
+  loginEvents LoginEvent[]
+
+  createdAt DateTime @default(now())
+}
+
+model School {
+  id       String  @id @default(cuid())
+  name     String
+  isActive Boolean @default(true)
+
+  users           User[]
+  grades          Grade[]
+  subjects        Subject[]
+  contents        Content[]
+  activationCodes ActivationCode[]
+  loginEvents     LoginEvent[]
+
+  createdAt DateTime @default(now())
+}
+
+model ActivationCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  expiresAt DateTime?
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model Grade {
+  id    String @id @default(cuid())
+  name  String
+  level Int
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  classes  ClassSection[]
+  subjects Subject[]
+  users    User[]
+
+  @@unique([schoolId, level])
+}
+
+model ClassSection {
+  id   String @id @default(cuid())
+  name String
+
+  gradeId String
+  grade   Grade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  users User[]
+
+  @@unique([gradeId, name])
+}
+
+model Subject {
+  id   String @id @default(cuid())
+  name String
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  gradeId String
+  grade   Grade  @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+
+  chapters Chapter[]
+
+  @@unique([schoolId, gradeId, name])
+}
+
+model Chapter {
+  id   String @id @default(cuid())
+  name String
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  topics Topic[]
+}
+
+model Topic {
+  id   String @id @default(cuid())
+  name String
+
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  contents Content[]
+}
+
+model Content {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  type        ContentType
+  filePath    String
+
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  schoolId String
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
+model LoginEvent {
+  id   String @id @default(cuid())
+  role Role
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  schoolId String?
+  school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
