@@ -8,20 +8,25 @@
     "scheme": "cortex",
     "userInterfaceStyle": "dark",
     "extra": {
-      "apiUrl": "http://192.168.1.9:3001/api"
+      "apiUrl": "http://192.168.1.9:3001/api",
+      "eas": {
+        "projectId": "1a61a97d-e211-44ec-9297-2f90bad28edf"
+      }
     },
-
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "in.cortex.app"
     },
     "android": {
+      "package": "in.cortex.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "single",
@@ -40,6 +45,7 @@
     ],
     "experiments": {
       "reactCompiler": false
-    }
+    },
+    "owner": "satvik_shanmukha"
   }
 }
