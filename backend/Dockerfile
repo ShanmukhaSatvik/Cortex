@@ -8,11 +8,18 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY prisma ./prisma
+COPY seed-media ./seed-media
+COPY tsconfig.json ./
+
 RUN npx prisma generate
 
+# Bake demo media into the image (Render free has no persistent disk)
+RUN mkdir -p uploads/pdfs uploads/animations \
+  && cp seed-media/sample.mp4 uploads/animations/demo.mp4 \
+  && npx tsx prisma/generatePdfs.ts \
+  && ls -la uploads/pdfs uploads/animations
+
 COPY src ./src
-COPY tsconfig.json ./
-COPY seed-media ./seed-media
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
