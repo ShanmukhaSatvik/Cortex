@@ -13,49 +13,109 @@ import type {
   Topic,
 } from "../types";
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ||
-  "http://localhost:3001/api";
+
+
+function resolveApiUrl() {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
+    return fromEnv.replace(/\/$/, "");
+  }
+
+  // On a physical device, Metro's host is this machine's LAN IP (e.g. 192.168.1.9:8081).
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    "";
+  const lanHost = String(hostUri).split(":")[0];
+
+  if (lanHost && lanHost !== "localhost" && lanHost !== "127.0.0.1") {
+    return `http://${lanHost}:3001/api`;
+  }
+
+  if (Platform.OS === "android") {
+    // Android emulator loopback to host machine
+    return "http://10.0.2.2:3001/api";
+  }
+
+  return fromEnv || "http://localhost:3001/api";
+}
+
+const API_URL = resolveApiUrl();
+
 
 const TOKEN_KEY = "cortexToken";
 const USER_KEY = "cortexUser";
 
+/** In-memory session — SecureStore can lag/fail; API must still send Bearer. */
+let memoryToken: string | null = null;
+let memoryUser: AuthUser | null = null;
+
 export const getApiBase = () => API_URL.replace(/\/api$/, "");
 
 async function storageSet(key: string, value: string) {
-  if (Platform.OS === "web") localStorage.setItem(key, value);
-  else await SecureStore.setItemAsync(key, value);
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
+    return;
+  }
+  try {
+    await SecureStore.setItemAsync(key, value);
+  } catch (e) {
+    console.warn("[cortex] SecureStore set failed", key, e);
+  }
 }
 
 async function storageGet(key: string) {
   if (Platform.OS === "web") return localStorage.getItem(key);
-  return SecureStore.getItemAsync(key);
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch (e) {
+    console.warn("[cortex] SecureStore get failed", key, e);
+    return null;
+  }
 }
 
 async function storageDelete(key: string) {
-  if (Platform.OS === "web") localStorage.removeItem(key);
-  else await SecureStore.deleteItemAsync(key);
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
+    return;
+  }
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch (e) {
+    console.warn("[cortex] SecureStore delete failed", key, e);
+  }
 }
 
 export const saveSession = async (token: string, user: AuthUser) => {
+  memoryToken = token;
+  memoryUser = user;
   await storageSet(TOKEN_KEY, token);
   await storageSet(USER_KEY, JSON.stringify(user));
 };
 
-export const getToken = () => storageGet(TOKEN_KEY);
+export const getToken = async () => {
+  if (memoryToken) return memoryToken;
+  const stored = await storageGet(TOKEN_KEY);
+  if (stored) memoryToken = stored;
+  return stored;
+};
 
 export const getStoredUser = async (): Promise<AuthUser | null> => {
+  if (memoryUser) return memoryUser;
   const raw = await storageGet(USER_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as AuthUser;
+    memoryUser = JSON.parse(raw) as AuthUser;
+    return memoryUser;
   } catch {
     return null;
   }
 };
 
 export const clearSession = async () => {
+  memoryToken = null;
+  memoryUser = null;
   await storageDelete(TOKEN_KEY);
   await storageDelete(USER_KEY);
 };
@@ -171,6 +231,83 @@ export const listContent = (topicId: string, type?: ContentType) => {
   return request<ContentItem[]>(`/content?${q.toString()}`);
 };
 
+function friendlyUploadError(raw: string, status?: number) {
+  const msg = (raw || "").toLowerCase();
+  if (msg.includes("formdatapart") || msg.includes("network request failed")) {
+    return "Could not upload this file from the device. Try another PDF/video, or pick the file again.";
+  }
+  if (msg.includes("file too large") || status === 413) {
+    return "File is too large. Please upload a smaller PDF or video (under 100MB).";
+  }
+  if (msg.includes("only staff") || msg.includes("forbidden") || status === 403) {
+    return "You do not have permission to upload. Sign in as a teacher or school admin.";
+  }
+  if (status === 401) {
+    return "Your session expired. Please sign in again, then retry the upload.";
+  }
+  if (!raw || msg.includes("upload failed")) {
+    return "Upload failed. Check your connection and try again.";
+  }
+  return raw;
+}
+
+function uploadNativeMultipart(payload: {
+  title: string;
+  description?: string;
+  type: ContentType;
+  topicId: string;
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  token: string | null;
+}) {
+  return new Promise<ContentItem>((resolve, reject) => {
+    const form = new FormData();
+    form.append("title", payload.title);
+    if (payload.description) form.append("description", payload.description);
+    form.append("type", payload.type);
+    form.append("topicId", payload.topicId);
+    form.append("file", {
+      uri: payload.uri,
+      name: payload.fileName,
+      type: payload.mimeType,
+    } as any);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/content`);
+    if (payload.token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${payload.token}`);
+    }
+    xhr.onload = () => {
+      let data: any = {};
+      try {
+        data = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+      } catch {
+        data = { message: xhr.responseText };
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve((data.content || data) as ContentItem);
+        return;
+      }
+      reject(
+        new ApiError(
+          friendlyUploadError(data?.message || "Upload failed", xhr.status),
+          xhr.status
+        )
+      );
+    };
+    xhr.onerror = () => {
+      reject(
+        new ApiError(
+          friendlyUploadError("Network request failed"),
+          0
+        )
+      );
+    };
+    xhr.send(form);
+  });
+}
+
 export const uploadContent = async (payload: {
   title: string;
   description?: string;
@@ -181,46 +318,93 @@ export const uploadContent = async (payload: {
   mimeType?: string;
 }) => {
   const token = await getToken();
-  const form = new FormData();
-  form.append("title", payload.title);
-  if (payload.description) form.append("description", payload.description);
-  form.append("type", payload.type);
-  form.append("topicId", payload.topicId);
+  const mime =
+    payload.mimeType ||
+    (payload.type === "PDF" ? "application/pdf" : "video/mp4");
 
-  if (Platform.OS === "web") {
-    const blob = await (await fetch(payload.uri)).blob();
-    form.append("file", blob, payload.fileName);
-  } else {
-    form.append("file", {
-      uri: payload.uri,
-      name: payload.fileName,
-      type: payload.mimeType || "application/octet-stream",
-    } as any);
+  try {
+    if (Platform.OS === "web") {
+      const form = new FormData();
+      form.append("title", payload.title);
+      if (payload.description) form.append("description", payload.description);
+      form.append("type", payload.type);
+      form.append("topicId", payload.topicId);
+      const blob = await (await fetch(payload.uri)).blob();
+      form.append("file", blob, payload.fileName);
+
+      const response = await fetch(`${API_URL}/content`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new ApiError(
+          friendlyUploadError(data?.message || "Upload failed", response.status),
+          response.status
+        );
+      }
+      return data as ContentItem;
+    }
+
+    // Native: XMLHttpRequest avoids fetch's "Unsupported FormDataPart" on Android
+    return await uploadNativeMultipart({
+      ...payload,
+      mimeType: mime,
+      token,
+    });
+  } catch (e: any) {
+    if (e instanceof ApiError) throw e;
+    throw new ApiError(
+      friendlyUploadError(e?.message || "Upload failed"),
+      e?.status || 0
+    );
   }
-
-  const response = await fetch(`${API_URL}/content`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data?.message || "Upload failed", response.status);
-  return data as ContentItem;
 };
 
 export const deleteContent = (id: string) =>
   request(`/content/${id}`, { method: "DELETE" });
 
-export const mediaUrl = (contentId: string) => `${API_URL}/content/media/${contentId}`;
+/** Optional token query — Android expo-video often cannot send Authorization headers. */
+export const mediaUrl = (contentId: string, token?: string | null) => {
+  const base = `${API_URL}/content/media/${contentId}`;
+  if (!token) return base;
+  return `${base}?token=${encodeURIComponent(token)}`;
+};
 
-export const fetchMediaBlobUrl = async (contentId: string) => {
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  if (typeof globalThis.btoa === "function") {
+    return globalThis.btoa(binary);
+  }
+  // Expo / Hermes fallback
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Buf = (globalThis as any).Buffer;
+  if (Buf) return Buf.from(bytes).toString("base64");
+  throw new Error("Base64 encoding is not available on this platform.");
+}
+
+const pdfBase64Cache = new Map<string, string>();
+
+/** Load PDF as base64 — avoids RN Blob/createObjectURL (unsupported on Android). */
+export const fetchPdfBase64 = async (contentId: string) => {
+  const cached = pdfBase64Cache.get(contentId);
+  if (cached) return cached;
+
   const token = await getToken();
   const response = await fetch(mediaUrl(contentId), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!response.ok) throw new ApiError("Failed to load media", response.status);
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
+  if (!response.ok) throw new ApiError("Failed to load PDF", response.status);
+  const buffer = await response.arrayBuffer();
+  const base64 = bytesToBase64(new Uint8Array(buffer));
+  pdfBase64Cache.set(contentId, base64);
+  return base64;
 };
+
 
 export { ApiError };

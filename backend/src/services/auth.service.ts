@@ -3,15 +3,18 @@ import prisma from "../config/prisma.js";
 import { comparePassword } from "../utils/hash.js";
 import { generateToken } from "../utils/jwt.js";
 
-const publicUser = (user: {
-  id: string;
-  name: string | null;
-  email: string;
-  role: Role;
-  schoolId: string | null;
-  gradeId: string | null;
-  classId: string | null;
-}) => ({
+const publicUser = (
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: Role;
+    schoolId: string | null;
+    gradeId: string | null;
+    classId: string | null;
+  },
+  extras?: { schoolName?: string | null; activationCode?: string | null }
+) => ({
   id: user.id,
   name: user.name,
   email: user.email,
@@ -19,7 +22,22 @@ const publicUser = (user: {
   schoolId: user.schoolId,
   gradeId: user.gradeId,
   classId: user.classId,
+  schoolName: extras?.schoolName ?? null,
+  activationCode: extras?.activationCode ?? null,
 });
+
+async function schoolExtras(schoolId: string | null) {
+  if (!schoolId) return { schoolName: null, activationCode: null };
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    include: { activationCodes: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  return {
+    schoolName: school?.name ?? null,
+    activationCode: school?.activationCodes[0]?.code ?? null,
+  };
+}
+
 
 export const platformLogin = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
@@ -89,11 +107,19 @@ export const codeLogin = async (
     classId: user.classId,
   });
 
-  return { token, user: publicUser(user) };
+  return {
+    token,
+    user: publicUser(user, {
+      schoolName: code.school.name,
+      activationCode: code.code,
+    }),
+  };
 };
 
 export const getMe = async (userId: string) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found.");
-  return publicUser(user);
+  const extras = await schoolExtras(user.schoolId);
+  return publicUser(user, extras);
 };
+

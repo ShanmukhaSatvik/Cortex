@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
@@ -22,6 +22,7 @@ export default function GradeSelectScreen({ navigation }: Props) {
     try {
       setGrades(await listGrades());
     } catch (e: any) {
+      setGrades([]);
       handleAuthError(e);
       setError(e?.message || "Failed to load grades");
     } finally {
@@ -38,18 +39,30 @@ export default function GradeSelectScreen({ navigation }: Props) {
   return (
     <Screen
       title="Select grade"
-      rightLabel="Logout"
+      rightIcon="log-out-outline"
       onRight={() => void logout().then(() => navigation.replace("Login"))}
       loading={loading}
       error={error}
     >
       {user?.role === "SCHOOL_ADMIN" ? (
-        <Pressable
-          style={styles.manageBtn}
-          onPress={() => navigation.navigate("ManageUsers")}
-        >
-          <Text style={styles.manageText}>Manage teachers & students</Text>
-        </Pressable>
+        <>
+          <View style={styles.codeCard}>
+            <Text style={styles.codeLabel}>School activation code</Text>
+            <Text style={styles.codeValue}>{user.activationCode || "—"}</Text>
+            {user.schoolName ? (
+              <Text style={styles.codeSchool}>{user.schoolName}</Text>
+            ) : null}
+            <Text style={styles.codeHint}>
+              Share this code with teachers and students so they can sign in.
+            </Text>
+          </View>
+          <Pressable
+            style={styles.manageBtn}
+            onPress={() => navigation.navigate("ManageUsers")}
+          >
+            <Text style={styles.manageText}>Manage teachers & students</Text>
+          </Pressable>
+        </>
       ) : null}
 
       <FlatList
@@ -64,7 +77,7 @@ export default function GradeSelectScreen({ navigation }: Props) {
           <ListCard
             title={item.name}
             subtitle={`Level ${item.level}`}
-            right="Open"
+            showChevron
             onPress={() => {
               setSelectedGrade(item.id, item.name);
               navigation.navigate("Subjects", {
@@ -73,6 +86,7 @@ export default function GradeSelectScreen({ navigation }: Props) {
               });
             }}
           />
+
         )}
       />
     </Screen>
@@ -82,6 +96,25 @@ export default function GradeSelectScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   help: { color: "#94a3b8", marginBottom: 12 },
   empty: { color: "#94a3b8", textAlign: "center", marginTop: 40 },
+  codeCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    backgroundColor: "#1e293b",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  codeLabel: { color: "#94a3b8", fontSize: 12, fontWeight: "600" },
+  codeValue: {
+    color: "#38bdf8",
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+  codeSchool: { color: "#e2e8f0", marginTop: 4, fontWeight: "600" },
+  codeHint: { color: "#64748b", marginTop: 8, fontSize: 12, lineHeight: 17 },
   manageBtn: {
     marginHorizontal: 16,
     marginTop: 12,

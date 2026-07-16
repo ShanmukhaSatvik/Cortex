@@ -9,7 +9,9 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import SegmentedTabs from "../components/SegmentedTabs";
 import { useAuth } from "../context/AuthContext";
 import type { AuthUser, RootStackParamList } from "../types";
 
@@ -34,11 +36,29 @@ function routeAfterLogin(user: AuthUser, navigation: Props["navigation"]) {
 export default function LoginScreen({ navigation }: Props) {
   const { platformLogin, codeLogin } = useAuth();
   const [tab, setTab] = useState<Tab>("admin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [activationCode, setActivationCode] = useState("");
+  const [email, setEmail] = useState("admin@cortex.in");
+  const [password, setPassword] = useState("admin123");
+  const [activationCode, setActivationCode] = useState("SCHOOL26");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onTabChange = (next: string) => {
+    const t = next as Tab;
+    setTab(t);
+    setError(null);
+    setShowPassword(false);
+    if (t === "admin") {
+      setEmail("admin@cortex.in");
+      setPassword("admin123");
+    } else if (t === "teacher") {
+      setEmail("teacher1@greenwood.in");
+      setActivationCode("SCHOOL26");
+    } else {
+      setEmail("student1@greenwood.in");
+      setActivationCode("SCHOOL26");
+    }
+  };
 
   const onSubmit = async () => {
     setError(null);
@@ -70,70 +90,76 @@ export default function LoginScreen({ navigation }: Props) {
       <Text style={styles.brand}>Cortex</Text>
       <Text style={styles.subtitle}>School content platform</Text>
 
-      <View style={styles.tabs}>
-        {(["admin", "teacher", "student"] as Tab[]).map((t) => (
-          <Pressable
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => {
-              setTab(t);
-              setError(null);
-            }}
-          >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === "admin" ? "Admin" : t === "teacher" ? "Teacher" : "Student"}
-            </Text>
+      <View style={styles.card}>
+        <SegmentedTabs
+          items={[
+            { key: "admin", label: "Admin" },
+            { key: "teacher", label: "Teacher" },
+            { key: "student", label: "Student" },
+          ]}
+          value={tab}
+          onChange={onTabChange}
+        />
+
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#64748b"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          {/* Fixed-height second field so tab switches don't jump */}
+          <View style={styles.secondField}>
+            {tab === "admin" ? (
+              <View style={styles.passwordWrap}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Password"
+                  placeholderTextColor="#64748b"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <Pressable
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={8}
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color="#94a3b8"
+                  />
+                </Pressable>
+              </View>
+            ) : (
+              <TextInput
+                style={styles.inputInSlot}
+                placeholder="Activation code"
+                placeholderTextColor="#64748b"
+                autoCapitalize="characters"
+                value={activationCode}
+                onChangeText={setActivationCode}
+              />
+            )}
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : <View style={styles.errorSlot} />}
+
+          <Pressable style={styles.button} onPress={onSubmit} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#0f172a" />
+            ) : (
+              <Text style={styles.buttonText}>Sign in</Text>
+            )}
           </Pressable>
-        ))}
+        </View>
       </View>
-
-      <Text style={styles.hint}>
-        {tab === "admin"
-          ? "Platform admin — email + password"
-          : tab === "teacher"
-            ? "Teachers & school admins — email + school code"
-            : "Students — email + school code"}
-      </Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#64748b"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      {tab === "admin" ? (
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#64748b"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-      ) : (
-        <TextInput
-          style={styles.input}
-          placeholder="Activation code"
-          placeholderTextColor="#64748b"
-          autoCapitalize="characters"
-          value={activationCode}
-          onChangeText={setActivationCode}
-        />
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable style={styles.button} onPress={onSubmit} disabled={loading}>
-        {loading ? (
-          <ActivityIndicator color="#0f172a" />
-        ) : (
-          <Text style={styles.buttonText}>Sign in</Text>
-        )}
-      </Pressable>
     </KeyboardAvoidingView>
   );
 }
@@ -151,19 +177,15 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -1,
   },
-  subtitle: { color: "#94a3b8", marginBottom: 28, marginTop: 4 },
-  tabs: {
-    flexDirection: "row",
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
+  subtitle: { color: "#94a3b8", marginBottom: 20, marginTop: 4 },
+  card: {
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#1e293b",
+    overflow: "hidden",
   },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
-  tabActive: { backgroundColor: "#0ea5e9" },
-  tabText: { color: "#94a3b8", fontWeight: "600", fontSize: 13 },
-  tabTextActive: { color: "#0f172a" },
-  hint: { color: "#64748b", marginBottom: 12, fontSize: 13 },
+  form: { padding: 16 },
   input: {
     backgroundColor: "#1e293b",
     color: "#f8fafc",
@@ -174,13 +196,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155",
   },
+  secondField: {
+    height: 52,
+    marginBottom: 12,
+  },
+  inputInSlot: {
+    flex: 1,
+    height: 52,
+    backgroundColor: "#1e293b",
+    color: "#f8fafc",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  passwordWrap: {
+    flex: 1,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1e293b",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  passwordInput: {
+    flex: 1,
+    color: "#f8fafc",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  eyeBtn: { paddingHorizontal: 12, paddingVertical: 10 },
+  error: { color: "#fca5a5", marginBottom: 8, minHeight: 20 },
+  errorSlot: { height: 20, marginBottom: 8 },
   button: {
     backgroundColor: "#38bdf8",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: 8,
   },
   buttonText: { color: "#0f172a", fontWeight: "800", fontSize: 16 },
-  error: { color: "#fca5a5", marginBottom: 8 },
 });

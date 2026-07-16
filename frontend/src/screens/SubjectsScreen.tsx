@@ -26,6 +26,7 @@ export default function SubjectsScreen({ navigation, route }: Props) {
       if (!gradeId) throw new Error("No grade assigned");
       setItems(await listSubjects(gradeId));
     } catch (e: any) {
+      setItems([]);
       handleAuthError(e);
       setError(e?.message || "Failed to load subjects");
     } finally {
@@ -45,7 +46,7 @@ export default function SubjectsScreen({ navigation, route }: Props) {
     <Screen
       title={route.params.gradeName || "Subjects"}
       onBack={canGoBack ? () => navigation.goBack() : undefined}
-      rightLabel="Logout"
+      rightIcon="log-out-outline"
       onRight={() => void logout().then(() => navigation.replace("Login"))}
       loading={loading}
       error={error}
@@ -62,7 +63,7 @@ export default function SubjectsScreen({ navigation, route }: Props) {
         renderItem={({ item }) => (
           <ListCard
             title={item.name}
-            right="Open"
+            showChevron
             onPress={() =>
               navigation.navigate("Chapters", {
                 subjectId: item.id,
@@ -71,6 +72,7 @@ export default function SubjectsScreen({ navigation, route }: Props) {
               })
             }
           />
+
         )}
       />
     </Screen>

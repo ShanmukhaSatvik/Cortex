@@ -54,7 +54,7 @@ export default function ChaptersScreen({ navigation, route }: Props) {
         renderItem={({ item }) => (
           <ListCard
             title={item.name}
-            right="Open"
+            showChevron
             onPress={() =>
               navigation.navigate("Topics", {
                 chapterId: item.id,

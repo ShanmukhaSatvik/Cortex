@@ -86,6 +86,16 @@ export const media = async (req: Request, res: Response) => {
       return;
     }
 
+    const external =
+      content.filePath.startsWith("http://") || content.filePath.startsWith("https://");
+    if (external || String(req.query.meta || "") === "1") {
+      res.json({
+        externalUrl: external ? content.filePath : null,
+        type: content.type,
+      });
+      return;
+    }
+
     const absolute = path.join(uploadsRootPath, content.filePath);
     if (!fs.existsSync(absolute)) {
       res.status(404).json({ message: "File missing." });

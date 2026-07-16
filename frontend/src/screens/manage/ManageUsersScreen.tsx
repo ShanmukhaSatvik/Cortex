@@ -12,8 +12,10 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../../components/Screen";
+import SegmentedTabs from "../../components/SegmentedTabs";
 import ListCard from "../../components/ListCard";
 import { useAuth } from "../../context/AuthContext";
+
 import {
   createStudent,
   createTeacher,
@@ -106,19 +108,14 @@ export default function ManageUsersScreen({ navigation }: Props) {
 
   return (
     <Screen title="Manage users" onBack={() => navigation.goBack()} loading={loading} error={error}>
-      <View style={styles.tabs}>
-        {(["teachers", "students"] as Tab[]).map((t) => (
-          <Pressable
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t)}
-          >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === "teachers" ? "Teachers" : "Students"}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      <SegmentedTabs
+        items={[
+          { key: "teachers", label: "Teachers" },
+          { key: "students", label: "Students" },
+        ]}
+        value={tab}
+        onChange={(key) => setTab(key as Tab)}
+      />
 
       <Pressable style={styles.addBtn} onPress={() => setModal(true)}>
         <Text style={styles.addText}>
@@ -208,25 +205,16 @@ export default function ManageUsersScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  tabs: {
-    flexDirection: "row",
-    margin: 16,
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 4,
-  },
-  tab: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: "center" },
-  tabActive: { backgroundColor: "#0ea5e9" },
-  tabText: { color: "#94a3b8", fontWeight: "600" },
-  tabTextActive: { color: "#0f172a" },
   addBtn: {
     marginHorizontal: 16,
+    marginTop: 12,
     marginBottom: 8,
     backgroundColor: "#38bdf8",
     borderRadius: 12,
     padding: 12,
     alignItems: "center",
   },
+
   addText: { color: "#0f172a", fontWeight: "800" },
   empty: { color: "#94a3b8", textAlign: "center", marginTop: 32 },
   modalBackdrop: {

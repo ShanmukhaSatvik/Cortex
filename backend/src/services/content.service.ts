@@ -5,6 +5,9 @@ import prisma from "../config/prisma.js";
 import { resolveTopicAccess } from "./catalog.service.js";
 import { uploadsRootPath } from "../config/multer.js";
 
+const isExternalPath = (filePath: string) =>
+  filePath.startsWith("http://") || filePath.startsWith("https://");
+
 export const listContent = async (
   user: User,
   topicId: string,
@@ -13,7 +16,7 @@ export const listContent = async (
   const topic = await resolveTopicAccess(user, topicId);
   if (!topic) throw new Error("Access denied.");
 
-  return prisma.content.findMany({
+  const rows = await prisma.content.findMany({
     where: {
       topicId,
       schoolId: user.schoolId!,
@@ -29,8 +32,14 @@ export const listContent = async (
       schoolId: true,
       uploadedById: true,
       createdAt: true,
+      filePath: true,
     },
   });
+
+  return rows.map(({ filePath, ...row }) => ({
+    ...row,
+    externalUrl: isExternalPath(filePath) ? filePath : null,
+  }));
 };
 
 export const createContent = async (
@@ -76,9 +85,11 @@ export const deleteContent = async (user: User, contentId: string) => {
   const topic = await resolveTopicAccess(user, content.topicId);
   if (!topic) throw new Error("Access denied.");
 
-  const absolute = path.join(uploadsRootPath, content.filePath);
-  if (fs.existsSync(absolute)) {
-    fs.unlinkSync(absolute);
+  if (!isExternalPath(content.filePath)) {
+    const absolute = path.join(uploadsRootPath, content.filePath);
+    if (fs.existsSync(absolute)) {
+      fs.unlinkSync(absolute);
+    }
   }
 
   await prisma.content.delete({ where: { id: contentId } });

@@ -8,13 +8,16 @@ export const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Header preferred; query `token` allowed for media players that cannot send Authorization
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      res.status(401).json({ message: "Access token missing." });
-      return;
-    }
+    const queryToken =
+      typeof req.query.token === "string" && req.query.token.trim()
+        ? req.query.token.trim()
+        : null;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : queryToken;
 
-    const token = authHeader.split(" ")[1];
     if (!token) {
       res.status(401).json({ message: "Access token missing." });
       return;

@@ -54,7 +54,7 @@ export default function TopicsScreen({ navigation, route }: Props) {
         renderItem={({ item }) => (
           <ListCard
             title={item.name}
-            right="Open"
+            showChevron
             onPress={() =>
               navigation.navigate("TopicContent", {
                 topicId: item.id,

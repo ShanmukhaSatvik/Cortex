@@ -1,6 +1,26 @@
 import "dotenv/config";
-import { PrismaClient, Role } from "@prisma/client";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { ContentType, PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { generateLessonPdfs } from "./generatePdfs.js";
+import { LESSONS } from "./lessonContent.js";
+import { LESSON_VIDEOS } from "./lessonVideos.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function ensureDemoAnimation() {
+  const source = path.join(__dirname, "../seed-media/sample.mp4");
+  const destDir = path.join(__dirname, "../uploads/animations");
+  const dest = path.join(destDir, "demo.mp4");
+  if (!fs.existsSync(source)) {
+    throw new Error(`Missing seed video at ${source}`);
+  }
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.copyFileSync(source, dest);
+  console.log("Demo animation ready: uploads/animations/demo.mp4");
+}
 
 const prisma = new PrismaClient();
 
@@ -28,6 +48,9 @@ const SUBJECT_TREE: Record<string, { chapters: { name: string; topics: string[] 
 async function main() {
   console.log("Seeding Cortex database...");
 
+  await generateLessonPdfs();
+  ensureDemoAnimation();
+
   await prisma.loginEvent.deleteMany();
   await prisma.content.deleteMany();
   await prisma.topic.deleteMany();
@@ -40,7 +63,7 @@ async function main() {
   await prisma.school.deleteMany();
 
   const adminEmail = process.env.PLATFORM_ADMIN_EMAIL || "admin@cortex.in";
-  const adminPassword = process.env.PLATFORM_ADMIN_PASSWORD || "cortex123";
+  const adminPassword = process.env.PLATFORM_ADMIN_PASSWORD || "admin123";
   const hashed = await bcrypt.hash(adminPassword, 10);
 
   await prisma.user.create({
@@ -54,14 +77,14 @@ async function main() {
 
   const school = await prisma.school.create({
     data: {
-      name: "Cortex Demo School",
+      name: "Greenwood High",
       isActive: true,
     },
   });
 
   await prisma.activationCode.create({
     data: {
-      code: "CORTEX-DEMO-2026",
+      code: "SCHOOL26",
       schoolId: school.id,
       expiresAt: new Date("2028-12-31"),
     },
@@ -118,10 +141,10 @@ async function main() {
     where: { gradeId: grade8.id },
   });
 
-  await prisma.user.create({
+  const schoolAdmin = await prisma.user.create({
     data: {
-      name: "Demo School Admin",
-      email: "schooladmin@demo.cortex.in",
+      name: "School Admin",
+      email: "admin@greenwood.in",
       role: Role.SCHOOL_ADMIN,
       schoolId: school.id,
     },
@@ -129,8 +152,8 @@ async function main() {
 
   await prisma.user.create({
     data: {
-      name: "Demo Teacher",
-      email: "teacher@demo.cortex.in",
+      name: "Teacher 1",
+      email: "teacher1@greenwood.in",
       role: Role.TEACHER,
       schoolId: school.id,
     },
@@ -138,8 +161,8 @@ async function main() {
 
   await prisma.user.create({
     data: {
-      name: "Demo Student",
-      email: "student@demo.cortex.in",
+      name: "Student 1",
+      email: "student1@greenwood.in",
       role: Role.STUDENT,
       schoolId: school.id,
       gradeId: grade8.id,
@@ -147,12 +170,66 @@ async function main() {
     },
   });
 
+  // Attach lesson PDFs to matching topics for every grade (same files, topic-relevant titles)
+  const lessonByTopic = new Map(LESSONS.map((l) => [l.topic, l]));
+  const topics = await prisma.topic.findMany({
+    include: {
+      chapter: {
+        include: {
+          subject: true,
+        },
+      },
+    },
+  });
+
+  let pdfCount = 0;
+  let videoCount = 0;
+  const videoByTopic = new Map(LESSON_VIDEOS.map((v) => [v.topic, v]));
+
+  for (const topic of topics) {
+    if (topic.chapter.subject.schoolId !== school.id) continue;
+
+    const lesson = lessonByTopic.get(topic.name);
+    if (lesson) {
+      await prisma.content.create({
+        data: {
+          title: `${lesson.title} — Lesson Notes`,
+          description: `${lesson.subtitle} · Greenwood High classroom PDF`,
+          type: ContentType.PDF,
+          filePath: `pdfs/${lesson.file}`,
+          topicId: topic.id,
+          schoolId: school.id,
+          uploadedById: schoolAdmin.id,
+        },
+      });
+      pdfCount += 1;
+    }
+
+    const video = videoByTopic.get(topic.name);
+    if (video) {
+      await prisma.content.create({
+        data: {
+          title: video.title,
+          description: video.description ?? null,
+          type: ContentType.VIDEO,
+          filePath: `animations/${video.file}`,
+          topicId: topic.id,
+          schoolId: school.id,
+          uploadedById: schoolAdmin.id,
+        },
+      });
+      videoCount += 1;
+    }
+  }
+
   console.log("Seed complete.");
-  console.log("Platform admin:", adminEmail, "/", adminPassword);
-  console.log("Activation code: CORTEX-DEMO-2026");
-  console.log("School admin: schooladmin@demo.cortex.in");
-  console.log("Teacher: teacher@demo.cortex.in");
-  console.log("Student: student@demo.cortex.in (Grade 8)");
+  console.log("Lesson PDFs attached:", pdfCount);
+  console.log("Local lesson animations linked:", videoCount);
+  console.log("Admin:", adminEmail, "/", adminPassword);
+  console.log("Code: SCHOOL26");
+  console.log("School admin: admin@greenwood.in");
+  console.log("Teacher: teacher1@greenwood.in");
+  console.log("Student: student1@greenwood.in (Grade 8)");
 }
 
 main()

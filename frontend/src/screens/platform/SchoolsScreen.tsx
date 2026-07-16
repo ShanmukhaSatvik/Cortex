@@ -66,7 +66,7 @@ export default function SchoolsScreen({ navigation }: Props) {
   return (
     <Screen
       title="Schools"
-      rightLabel="Logout"
+      rightIcon="log-out-outline"
       onRight={() => void logout().then(() => navigation.replace("Login"))}
       loading={loading}
       error={error}
@@ -86,6 +86,7 @@ export default function SchoolsScreen({ navigation }: Props) {
             <ListCard
               title={item.name}
               subtitle={`${item.isActive ? "Active" : "Inactive"} · Code ${item.activationCode || "—"} · Teachers ${item.stats.teacherCount} · Students ${item.stats.studentCount} · Logins ${item.stats.distinctLoginUsers}`}
+              showChevron
               onPress={() =>
                 navigation.navigate("SchoolDetail", {
                   schoolId: item.id,
@@ -93,6 +94,7 @@ export default function SchoolsScreen({ navigation }: Props) {
                 })
               }
             />
+
           )}
         />
       </View>

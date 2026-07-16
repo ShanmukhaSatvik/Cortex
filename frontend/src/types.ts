@@ -10,6 +10,8 @@ export type AuthUser = {
   schoolId: string | null;
   gradeId: string | null;
   classId: string | null;
+  schoolName?: string | null;
+  activationCode?: string | null;
 };
 
 export type Grade = {
@@ -38,6 +40,8 @@ export type ContentItem = {
   schoolId: string;
   uploadedById: string;
   createdAt: string;
+  /** Public URL (e.g. YouTube) when content is not a local upload. */
+  externalUrl?: string | null;
 };
 
 export type SchoolRow = {
@@ -66,5 +70,10 @@ export type RootStackParamList = {
   Chapters: { subjectId: string; subjectName: string; gradeId: string };
   Topics: { chapterId: string; chapterName: string; gradeId: string };
   TopicContent: { topicId: string; topicName: string; gradeId: string };
-  ContentViewer: { contentId: string; title: string; type: ContentType };
+  ContentViewer: {
+    contentId: string;
+    title: string;
+    type: ContentType;
+    externalUrl?: string | null;
+  };
 };

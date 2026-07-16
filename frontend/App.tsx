@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
 import MobileShell from "./src/components/MobileShell";
@@ -23,13 +24,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function RootNavigator() {
   const { user, loading } = useAuth();
-  const [ready, setReady] = useState(false);
+  const [booted, setBooted] = useState(false);
 
   useEffect(() => {
-    if (!loading) setReady(true);
+    if (!loading) setBooted(true);
   }, [loading]);
 
-  if (!ready || loading) {
+  if (!booted || loading) {
     return (
       <View style={{ flex: 1, backgroundColor: "#0f172a", justifyContent: "center" }}>
         <ActivityIndicator color="#38bdf8" size="large" />
@@ -47,7 +48,7 @@ function RootNavigator() {
 
   return (
     <Stack.Navigator
-      key={user ? `${user.id}-${user.role}` : "guest"}
+      key={user ? `${user.role}-${user.id}` : "guest"}
       initialRouteName={initialRoute as keyof RootStackParamList}
       screenOptions={{ headerShown: false, animation: "fade" }}
     >
@@ -75,13 +76,15 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <MobileShell>
-        <NavigationContainer>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
-      </MobileShell>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <MobileShell>
+          <NavigationContainer>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </NavigationContainer>
+        </MobileShell>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

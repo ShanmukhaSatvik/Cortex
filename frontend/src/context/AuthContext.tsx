@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type Context,
+} from "react";
 import type { AuthUser } from "../types";
 import {
   clearSession,
@@ -29,7 +37,12 @@ type AuthContextValue = {
   handleAuthError: (error: unknown) => void;
 };
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+// Survive Metro Fast Refresh / duplicate module instances
+const GLOBAL_KEY = "__CORTEX_AUTH_CONTEXT__";
+const AuthContext: Context<AuthContextValue | null> =
+  ((globalThis as any)[GLOBAL_KEY] as Context<AuthContextValue | null> | undefined) ??
+  createContext<AuthContextValue | null>(null);
+(globalThis as any)[GLOBAL_KEY] = AuthContext;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -38,26 +51,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [selectedGradeName, setSelectedGradeName] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const token = await getToken();
         const stored = await getStoredUser();
         if (!token || !stored) {
-          setLoading(false);
+          if (!cancelled) setLoading(false);
           return;
         }
         const { user: me } = await fetchMe();
+        if (cancelled) return;
         setUser(me);
         if (me.role === "STUDENT" && me.gradeId) {
           setSelectedGradeId(me.gradeId);
         }
       } catch {
         await clearSession();
-        setUser(null);
+        if (!cancelled) setUser(null);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const setSelectedGrade = useCallback((id: string, name: string) => {
@@ -92,7 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await logoutApi();
+    try {
+      await logoutApi();
+    } catch {
+      // ignore network errors on logout
+    }
     await clearSession();
     setUser(null);
     setSelectedGradeId(null);
@@ -107,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleAuthError = useCallback(
     (error: unknown) => {
       if (error instanceof ApiError && error.status === 401) {
+        // Await clear so the next screen cannot fire requests with a half-cleared session
         void logout();
       }
     },
@@ -145,6 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
   return ctx;
 }
