@@ -1,4 +1,6 @@
 # Free-tier Render Blueprint (spins down after ~15 min idle — OK for demos)
+# Env values sourced from local backend/.env for Blueprint deploy.
+# Keep this repo PRIVATE while these secrets are present.
 services:
   - type: web
     name: cortex-api
@@ -14,13 +16,15 @@ services:
         value: "22"
       - key: HOST
         value: "0.0.0.0"
+      - key: PORT
+        value: "3001"
       - key: DATABASE_URL
-        sync: false
+        value: "postgresql://neondb_owner:npg_8r1kDGUFEybl@ep-super-hall-azifgqin-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: DIRECT_URL
-        sync: false
+        value: "postgresql://neondb_owner:npg_8r1kDGUFEybl@ep-super-hall-azifgqin.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
       - key: JWT_SECRET
-        generateValue: true
+        value: "cortex-dev-jwt-secret-change-me"
       - key: PLATFORM_ADMIN_EMAIL
-        value: admin@cortex.in
+        value: "admin@cortex.in"
       - key: PLATFORM_ADMIN_PASSWORD
-        sync: false
+        value: "admin123"
