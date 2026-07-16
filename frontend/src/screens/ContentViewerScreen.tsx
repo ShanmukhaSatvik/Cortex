@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { createElement, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, View } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { WebView } from "react-native-webview";
@@ -15,6 +15,32 @@ import {
 } from "../utils/youtube";
 
 type Props = NativeStackScreenProps<RootStackParamList, "ContentViewer">;
+
+const isWeb = Platform.OS === "web";
+
+function WebIFrame({
+  src,
+  title,
+  onLoad,
+}: {
+  src: string;
+  title: string;
+  onLoad?: () => void;
+}) {
+  return createElement("iframe", {
+    src,
+    title,
+    onLoad,
+    style: {
+      border: "none",
+      width: "100%",
+      height: "100%",
+      backgroundColor: "#0f172a",
+    },
+    allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen",
+    allowFullScreen: true,
+  });
+}
 
 function AnimationPlayer({ uri }: { uri: string }) {
   const source = useMemo(() => ({ uri }), [uri]);
@@ -41,25 +67,33 @@ function YouTubePlayer({ embedUrl }: { embedUrl: string }) {
 
   return (
     <View style={styles.video}>
-      <WebView
-        style={styles.video}
-        source={{ uri: embedUrl }}
-        originWhitelist={["*"]}
-        allowsFullscreenVideo
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        javaScriptEnabled
-        domStorageEnabled
-        mixedContentMode="always"
-        setSupportMultipleWindows={false}
-        userAgent={
-          Platform.OS === "android"
-            ? "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-            : undefined
-        }
-        onLoadEnd={() => setReady(true)}
-        onError={() => setReady(true)}
-      />
+      {isWeb ? (
+        <WebIFrame
+          src={embedUrl}
+          title="YouTube video"
+          onLoad={() => setReady(true)}
+        />
+      ) : (
+        <WebView
+          style={styles.video}
+          source={{ uri: embedUrl }}
+          originWhitelist={["*"]}
+          allowsFullscreenVideo
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled
+          domStorageEnabled
+          mixedContentMode="always"
+          setSupportMultipleWindows={false}
+          userAgent={
+            Platform.OS === "android"
+              ? "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+              : undefined
+          }
+          onLoadEnd={() => setReady(true)}
+          onError={() => setReady(true)}
+        />
+      )}
       {!ready ? (
         <View style={styles.overlay}>
           <ActivityIndicator color="#38bdf8" size="large" />
@@ -198,6 +232,16 @@ export default function ContentViewerScreen({ navigation, route }: Props) {
           return;
         }
 
+        // Web: stream PDF via authenticated media URL in an iframe (no WebView)
+        if (isWeb) {
+          if (!token) throw new Error("Access token missing.");
+          if (!cancelled) {
+            setUri(mediaUrl(route.params.contentId, token));
+            setLoading(false);
+          }
+          return;
+        }
+
         const base64 = await fetchPdfBase64(route.params.contentId);
         if (!cancelled) {
           setPdfBase64(base64);
@@ -245,7 +289,18 @@ export default function ContentViewerScreen({ navigation, route }: Props) {
         <AnimationPlayer uri={uri} />
       ) : null}
 
-      {isPdf && !error ? (
+      {isPdf && !error && isWeb && uri ? (
+        <View style={styles.pdfWrap}>
+          <WebIFrame src={uri} title={screenTitle} />
+          {loading ? (
+            <View style={styles.overlay}>
+              <ActivityIndicator color="#38bdf8" size="large" />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {isPdf && !error && !isWeb ? (
         <View style={styles.pdfWrap}>
           <WebView
             ref={webRef}

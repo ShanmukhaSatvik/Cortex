@@ -16,9 +16,24 @@ import type {
 
 
 function resolveApiUrl() {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim()?.replace(/\/$/, "");
+  const fromExtra = String(
+    (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl || ""
+  )
+    .trim()
+    .replace(/\/$/, "");
+
+  // Prefer explicit public API (production / EAS / web export)
   if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
-    return fromEnv.replace(/\/$/, "");
+    return fromEnv;
+  }
+  if (fromExtra && !fromExtra.includes("localhost") && !fromExtra.includes("127.0.0.1")) {
+    return fromExtra;
+  }
+
+  // Browser local override
+  if (Platform.OS === "web" && fromEnv) {
+    return fromEnv;
   }
 
   // On a physical device, Metro's host is this machine's LAN IP (e.g. 192.168.1.9:8081).
@@ -34,11 +49,10 @@ function resolveApiUrl() {
   }
 
   if (Platform.OS === "android") {
-    // Android emulator loopback to host machine
     return "http://10.0.2.2:3001/api";
   }
 
-  return fromEnv || "http://localhost:3001/api";
+  return fromEnv || fromExtra || "http://localhost:3001/api";
 }
 
 const API_URL = resolveApiUrl();

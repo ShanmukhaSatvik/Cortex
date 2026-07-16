@@ -8,7 +8,7 @@
     "scheme": "cortex",
     "userInterfaceStyle": "dark",
     "extra": {
-      "apiUrl": "http://192.168.1.9:3001/api",
+      "apiUrl": "https://cortex-api-1s2s.onrender.com/api",
       "eas": {
         "projectId": "1a61a97d-e211-44ec-9297-2f90bad28edf"
       }
