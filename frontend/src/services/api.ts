@@ -194,10 +194,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     });
   } catch (e: any) {
     const detail = e?.message || "Network request failed";
-    throw new ApiError(
-      `Cannot reach API (${apiUrl}). ${detail}. Phone and PC must share Wi‑Fi, backend on :3001, or set EXPO_PUBLIC_API_URL to your PC LAN IP.`,
-      0
-    );
+    const hint = isLoopbackUrl(apiUrl) || /192\.168\.|10\.0\.2\.2/.test(apiUrl)
+      ? " Phone and PC must share Wi‑Fi and the local backend must be running."
+      : " The live API may be asleep or showing Failed on Render — open Render logs and redeploy.";
+    throw new ApiError(`Cannot reach API (${apiUrl}). ${detail}.${hint}`, 0);
   }
 
   const text = await response.text();

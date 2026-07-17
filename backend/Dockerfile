@@ -23,7 +23,10 @@ COPY src ./src
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
+# Render sets PORT (often 10000); server.ts already respects process.env.PORT
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma db push && npx tsx src/server.ts"]
+# Never block forever on migrate: push schema, then always start the HTTP server
+# so Render health checks can pass even if DB was already in sync.
+CMD ["sh", "-c", "npx prisma db push; exec npx tsx src/server.ts"]
