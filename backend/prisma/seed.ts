@@ -66,6 +66,11 @@ async function main() {
   const adminPassword = process.env.PLATFORM_ADMIN_PASSWORD || "admin123";
   const hashed = await bcrypt.hash(adminPassword, 10);
 
+  // Stable demo codes: 3 letters + 3 digits, mixed order
+  const DEMO_ADMIN_CODE = "A7K2M9";
+  const DEMO_TEACHER_CODE = "B3P8Q1";
+  const DEMO_STUDENT_CODE = "C5R4T6";
+
   await prisma.user.create({
     data: {
       name: "Platform Admin",
@@ -79,14 +84,6 @@ async function main() {
     data: {
       name: "Greenwood High",
       isActive: true,
-    },
-  });
-
-  await prisma.activationCode.create({
-    data: {
-      code: "SCHOOL26",
-      schoolId: school.id,
-      expiresAt: new Date("2028-12-31"),
     },
   });
 
@@ -147,6 +144,7 @@ async function main() {
       email: "admin@greenwood.in",
       role: Role.SCHOOL_ADMIN,
       schoolId: school.id,
+      activationCode: DEMO_ADMIN_CODE,
     },
   });
 
@@ -156,6 +154,7 @@ async function main() {
       email: "teacher1@greenwood.in",
       role: Role.TEACHER,
       schoolId: school.id,
+      activationCode: DEMO_TEACHER_CODE,
     },
   });
 
@@ -167,6 +166,7 @@ async function main() {
       schoolId: school.id,
       gradeId: grade8.id,
       classId: class8!.id,
+      activationCode: DEMO_STUDENT_CODE,
     },
   });
 
@@ -225,11 +225,10 @@ async function main() {
   console.log("Seed complete.");
   console.log("Lesson PDFs attached:", pdfCount);
   console.log("Local lesson animations linked:", videoCount);
-  console.log("Admin:", adminEmail, "/", adminPassword);
-  console.log("Code: SCHOOL26");
-  console.log("School admin: admin@greenwood.in");
-  console.log("Teacher: teacher1@greenwood.in");
-  console.log("Student: student1@greenwood.in (Grade 8)");
+  console.log("Platform admin:", adminEmail, "/", adminPassword);
+  console.log("School admin: admin@greenwood.in /", DEMO_ADMIN_CODE);
+  console.log("Teacher: teacher1@greenwood.in /", DEMO_TEACHER_CODE);
+  console.log("Student: student1@greenwood.in /", DEMO_STUDENT_CODE, "(Grade 8)");
 }
 
 main()

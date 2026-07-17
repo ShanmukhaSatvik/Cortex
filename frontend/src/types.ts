@@ -49,8 +49,14 @@ export type SchoolRow = {
   name: string;
   isActive: boolean;
   createdAt: string;
+  /** School admin's personal activation code (null until an admin is assigned). */
   activationCode: string | null;
-  schoolAdmin: { id: string; email: string; name: string | null } | null;
+  schoolAdmin: {
+    id: string;
+    email: string;
+    name: string | null;
+    activationCode?: string | null;
+  } | null;
   stats: {
     teacherCount: number;
     studentCount: number;

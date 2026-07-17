@@ -1,27 +1,10 @@
 import { Role } from "@prisma/client";
 import prisma from "../config/prisma.js";
-import crypto from "crypto";
-
-const makeCode = (schoolName: string) => {
-  const slug = schoolName
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 8);
-  const suffix = crypto.randomBytes(3).toString("hex").toUpperCase();
-  return `CORTEX-${slug || "SCH"}-${suffix}`;
-};
+import { allocateActivationCode } from "../utils/activationCode.js";
 
 export const listSchools = async () => {
   const schools = await prisma.school.findMany({
     orderBy: { createdAt: "desc" },
-    include: {
-      activationCodes: true,
-      _count: {
-        select: {
-          users: true,
-        },
-      },
-    },
   });
 
   return Promise.all(
@@ -46,7 +29,12 @@ export const listSchools = async () => {
 
       const schoolAdmin = await prisma.user.findFirst({
         where: { schoolId: school.id, role: Role.SCHOOL_ADMIN },
-        select: { id: true, email: true, name: true },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          activationCode: true,
+        },
       });
 
       return {
@@ -54,7 +42,8 @@ export const listSchools = async () => {
         name: school.name,
         isActive: school.isActive,
         createdAt: school.createdAt,
-        activationCode: school.activationCodes[0]?.code ?? null,
+        /** School admin's personal code (null until an admin is assigned). */
+        activationCode: schoolAdmin?.activationCode ?? null,
         schoolAdmin,
         stats: {
           teacherCount,
@@ -71,14 +60,6 @@ export const listSchools = async () => {
 export const createSchool = async (name: string) => {
   const school = await prisma.school.create({
     data: { name: name.trim(), isActive: true },
-  });
-
-  const code = await prisma.activationCode.create({
-    data: {
-      code: makeCode(name),
-      schoolId: school.id,
-      expiresAt: new Date("2030-12-31"),
-    },
   });
 
   // Seed grades 6-10 + Section A + subject tree for new schools
@@ -131,7 +112,7 @@ export const createSchool = async (name: string) => {
     id: school.id,
     name: school.name,
     isActive: school.isActive,
-    activationCode: code.code,
+    activationCode: null as string | null,
   };
 };
 
@@ -157,7 +138,6 @@ export const assignSchoolAdmin = async (schoolId: string, email: string, name?: 
       throw new Error("Email already belongs to another school.");
     }
 
-    // Downgrade previous school admins of this school to TEACHER (except same user)
     await prisma.user.updateMany({
       where: {
         schoolId,
@@ -167,6 +147,9 @@ export const assignSchoolAdmin = async (schoolId: string, email: string, name?: 
       data: { role: Role.TEACHER },
     });
 
+    const activationCode =
+      existing.activationCode || (await allocateActivationCode());
+
     return prisma.user.update({
       where: { id: existing.id },
       data: {
@@ -175,8 +158,15 @@ export const assignSchoolAdmin = async (schoolId: string, email: string, name?: 
         name: name?.trim() || existing.name || "School Admin",
         gradeId: null,
         classId: null,
+        activationCode,
       },
-      select: { id: true, email: true, name: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        activationCode: true,
+      },
     });
   }
 
@@ -185,13 +175,22 @@ export const assignSchoolAdmin = async (schoolId: string, email: string, name?: 
     data: { role: Role.TEACHER },
   });
 
+  const activationCode = await allocateActivationCode();
+
   return prisma.user.create({
     data: {
       email: normalized,
       name: name?.trim() || "School Admin",
       role: Role.SCHOOL_ADMIN,
       schoolId,
+      activationCode,
     },
-    select: { id: true, email: true, name: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      activationCode: true,
+    },
   });
 };

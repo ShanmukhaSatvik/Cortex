@@ -82,18 +82,26 @@ export default function ManageUsersScreen({ navigation }: Props) {
   const onCreate = async () => {
     try {
       if (tab === "teachers") {
-        await createTeacher(email.trim(), name.trim() || undefined);
+        const teacher = await createTeacher(email.trim(), name.trim() || undefined);
+        Alert.alert(
+          "Teacher created",
+          `Personal activation code: ${teacher.activationCode}`
+        );
       } else {
         if (!gradeId || !classId) {
           Alert.alert("Missing", "Select grade and class");
           return;
         }
-        await createStudent({
+        const student = await createStudent({
           email: email.trim(),
           name: name.trim() || undefined,
           gradeId,
           classId,
         });
+        Alert.alert(
+          "Student created",
+          `Personal activation code: ${student.activationCode}`
+        );
       }
       setModal(false);
       setEmail("");
@@ -133,8 +141,8 @@ export default function ManageUsersScreen({ navigation }: Props) {
             title={item.name || item.email}
             subtitle={
               tab === "teachers"
-                ? `${item.email} · ${item.role}`
-                : `${item.email} · ${item.grade?.name || ""} ${item.class?.name || ""}`
+                ? `${item.email} · ${item.role} · ${item.activationCode || "—"}`
+                : `${item.email} · ${item.grade?.name || ""} ${item.class?.name || ""} · ${item.activationCode || "—"}`
             }
           />
         )}

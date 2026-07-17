@@ -51,10 +51,13 @@ export default function SchoolsScreen({ navigation }: Props) {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const school = await createSchool(name.trim());
+      await createSchool(name.trim());
       setModal(false);
       setName("");
-      Alert.alert("School created", `Activation code: ${school.activationCode}`);
+      Alert.alert(
+        "School created",
+        "Open the school and assign a school admin to generate their personal activation code."
+      );
       await load();
     } catch (e: any) {
       Alert.alert("Error", e?.message || "Create failed");
@@ -85,7 +88,7 @@ export default function SchoolsScreen({ navigation }: Props) {
           renderItem={({ item }) => (
             <ListCard
               title={item.name}
-              subtitle={`${item.isActive ? "Active" : "Inactive"} · Code ${item.activationCode || "—"} · Teachers ${item.stats.teacherCount} · Students ${item.stats.studentCount} · Logins ${item.stats.distinctLoginUsers}`}
+              subtitle={`${item.isActive ? "Active" : "Inactive"} · Admin code ${item.activationCode || "—"} · Teachers ${item.stats.teacherCount} · Students ${item.stats.studentCount} · Logins ${item.stats.distinctLoginUsers}`}
               showChevron
               onPress={() =>
                 navigation.navigate("SchoolDetail", {

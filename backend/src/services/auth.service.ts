@@ -12,8 +12,9 @@ const publicUser = (
     schoolId: string | null;
     gradeId: string | null;
     classId: string | null;
+    activationCode?: string | null;
   },
-  extras?: { schoolName?: string | null; activationCode?: string | null }
+  extras?: { schoolName?: string | null }
 ) => ({
   id: user.id,
   name: user.name,
@@ -23,21 +24,17 @@ const publicUser = (
   gradeId: user.gradeId,
   classId: user.classId,
   schoolName: extras?.schoolName ?? null,
-  activationCode: extras?.activationCode ?? null,
+  activationCode: user.activationCode ?? null,
 });
 
-async function schoolExtras(schoolId: string | null) {
-  if (!schoolId) return { schoolName: null, activationCode: null };
+async function schoolNameFor(schoolId: string | null) {
+  if (!schoolId) return null;
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
-    include: { activationCodes: { orderBy: { createdAt: "desc" }, take: 1 } },
+    select: { name: true },
   });
-  return {
-    schoolName: school?.name ?? null,
-    activationCode: school?.activationCodes[0]?.code ?? null,
-  };
+  return school?.name ?? null;
 }
-
 
 export const platformLogin = async (email: string, password: string) => {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
@@ -68,24 +65,24 @@ export const codeLogin = async (
   activationCode: string,
   expectedRoles: Role[]
 ) => {
-  const code = await prisma.activationCode.findUnique({
-    where: { code: activationCode.trim() },
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
     include: { school: true },
   });
 
-  if (!code) throw new Error("Invalid activation code.");
-  if (code.expiresAt && code.expiresAt < new Date()) {
-    throw new Error("Activation code expired.");
+  if (!user || !user.activationCode) {
+    throw new Error("Invalid email or activation code.");
   }
-  if (!code.school.isActive) throw new Error("School is not active.");
 
-  const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase().trim() },
-  });
-
-  if (!user || user.schoolId !== code.schoolId) {
-    throw new Error("Email is not registered for this school.");
+  if (user.activationCode.trim().toUpperCase() !== activationCode.trim().toUpperCase()) {
+    throw new Error("Invalid email or activation code.");
   }
+
+  if (!user.schoolId || !user.school) {
+    throw new Error("User is not linked to a school.");
+  }
+
+  if (!user.school.isActive) throw new Error("School is not active.");
 
   if (!expectedRoles.includes(user.role)) {
     throw new Error("Role does not match selected login tab.");
@@ -109,17 +106,13 @@ export const codeLogin = async (
 
   return {
     token,
-    user: publicUser(user, {
-      schoolName: code.school.name,
-      activationCode: code.code,
-    }),
+    user: publicUser(user, { schoolName: user.school.name }),
   };
 };
 
 export const getMe = async (userId: string) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("User not found.");
-  const extras = await schoolExtras(user.schoolId);
-  return publicUser(user, extras);
+  const schoolName = await schoolNameFor(user.schoolId);
+  return publicUser(user, { schoolName });
 };
-

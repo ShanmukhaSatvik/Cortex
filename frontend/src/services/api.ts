@@ -207,7 +207,7 @@ export const logoutApi = () =>
 export const listSchools = () => request<SchoolRow[]>("/schools");
 
 export const createSchool = (name: string) =>
-  request<{ id: string; name: string; activationCode: string }>("/schools", {
+  request<{ id: string; name: string; activationCode: string | null }>("/schools", {
     method: "POST",
     body: JSON.stringify({ name }),
   });
@@ -219,14 +219,26 @@ export const setSchoolActive = (id: string, isActive: boolean) =>
   });
 
 export const assignSchoolAdmin = (id: string, email: string, name?: string) =>
-  request(`/schools/${id}/school-admin`, {
+  request<{
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    activationCode: string;
+  }>(`/schools/${id}/school-admin`, {
     method: "POST",
     body: JSON.stringify({ email, name }),
   });
 
 export const listTeachers = () => request<any[]>("/users/teachers");
 export const createTeacher = (email: string, name?: string) =>
-  request("/users/teachers", {
+  request<{
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    activationCode: string;
+  }>("/users/teachers", {
     method: "POST",
     body: JSON.stringify({ email, name }),
   });
@@ -238,7 +250,15 @@ export const createStudent = (payload: {
   gradeId: string;
   classId: string;
 }) =>
-  request("/users/students", {
+  request<{
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    activationCode: string;
+    gradeId: string;
+    classId: string;
+  }>("/users/students", {
     method: "POST",
     body: JSON.stringify(payload),
   });

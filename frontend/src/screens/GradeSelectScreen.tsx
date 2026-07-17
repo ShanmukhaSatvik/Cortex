@@ -47,13 +47,14 @@ export default function GradeSelectScreen({ navigation }: Props) {
       {user?.role === "SCHOOL_ADMIN" ? (
         <>
           <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>School activation code</Text>
+            <Text style={styles.codeLabel}>Your activation code</Text>
             <Text style={styles.codeValue}>{user.activationCode || "—"}</Text>
             {user.schoolName ? (
               <Text style={styles.codeSchool}>{user.schoolName}</Text>
             ) : null}
             <Text style={styles.codeHint}>
-              Share this code with teachers and students so they can sign in.
+              Use this personal code with your email to sign in. Each teacher and
+              student gets their own code when you create them.
             </Text>
           </View>
           <Pressable

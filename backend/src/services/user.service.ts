@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import prisma from "../config/prisma.js";
+import { allocateActivationCode } from "../utils/activationCode.js";
 
 export const listTeachers = async (schoolId: string) => {
   return prisma.user.findMany({
@@ -12,6 +13,7 @@ export const listTeachers = async (schoolId: string) => {
       name: true,
       email: true,
       role: true,
+      activationCode: true,
       createdAt: true,
     },
     orderBy: { createdAt: "desc" },
@@ -27,14 +29,23 @@ export const createTeacher = async (
   const existing = await prisma.user.findUnique({ where: { email: normalized } });
   if (existing) throw new Error("Email already registered.");
 
+  const activationCode = await allocateActivationCode();
+
   return prisma.user.create({
     data: {
       email: normalized,
       name: name?.trim() || "Teacher",
       role: Role.TEACHER,
       schoolId,
+      activationCode,
     },
-    select: { id: true, name: true, email: true, role: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      activationCode: true,
+    },
   });
 };
 
@@ -45,6 +56,7 @@ export const listStudents = async (schoolId: string) => {
       id: true,
       name: true,
       email: true,
+      activationCode: true,
       gradeId: true,
       classId: true,
       grade: { select: { id: true, name: true, level: true } },
@@ -73,6 +85,8 @@ export const createStudent = async (
   const existing = await prisma.user.findUnique({ where: { email: normalized } });
   if (existing) throw new Error("Email already registered.");
 
+  const activationCode = await allocateActivationCode();
+
   return prisma.user.create({
     data: {
       email: normalized,
@@ -81,12 +95,14 @@ export const createStudent = async (
       schoolId,
       gradeId: data.gradeId,
       classId: data.classId,
+      activationCode,
     },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
+      activationCode: true,
       gradeId: true,
       classId: true,
     },

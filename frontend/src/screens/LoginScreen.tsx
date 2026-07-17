@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [tab, setTab] = useState<Tab>("admin");
   const [email, setEmail] = useState("admin@cortex.in");
   const [password, setPassword] = useState("admin123");
-  const [activationCode, setActivationCode] = useState("SCHOOL26");
+  const [activationCode, setActivationCode] = useState("B3P8Q1");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,10 +53,10 @@ export default function LoginScreen({ navigation }: Props) {
       setPassword("admin123");
     } else if (t === "teacher") {
       setEmail("teacher1@greenwood.in");
-      setActivationCode("SCHOOL26");
+      setActivationCode("B3P8Q1");
     } else {
       setEmail("student1@greenwood.in");
-      setActivationCode("SCHOOL26");
+      setActivationCode("C5R4T6");
     }
   };
 

@@ -59,8 +59,15 @@ export default function SchoolDetailScreen({ navigation, route }: Props) {
   const onAssign = async () => {
     if (!school || !email.trim()) return;
     try {
-      await assignSchoolAdmin(school.id, email.trim(), adminName.trim() || undefined);
-      Alert.alert("Saved", "School admin assigned. They login via Teacher tab with school code.");
+      const admin = await assignSchoolAdmin(
+        school.id,
+        email.trim(),
+        adminName.trim() || undefined
+      );
+      Alert.alert(
+        "School admin assigned",
+        `Personal activation code: ${admin.activationCode}\n\nThey sign in on the Teacher tab with their email and this code.`
+      );
       await load();
     } catch (e: any) {
       Alert.alert("Error", e?.message || "Assign failed");
@@ -77,8 +84,8 @@ export default function SchoolDetailScreen({ navigation, route }: Props) {
       {school ? (
         <View style={styles.wrap}>
           <View style={styles.card}>
-            <Text style={styles.label}>Activation code</Text>
-            <Text style={styles.value}>{school.activationCode}</Text>
+            <Text style={styles.label}>School admin activation code</Text>
+            <Text style={styles.value}>{school.activationCode || "Assign an admin first"}</Text>
             <Text style={styles.label}>Status</Text>
             <Text style={styles.value}>{school.isActive ? "Active" : "Inactive"}</Text>
             <Pressable style={styles.btnSecondary} onPress={toggleActive}>
@@ -98,9 +105,12 @@ export default function SchoolDetailScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.section}>Mark school admin email</Text>
+            <Text style={styles.section}>Assign school admin</Text>
             <Text style={styles.help}>
               Current: {school.schoolAdmin?.email || "None assigned"}
+              {school.schoolAdmin?.activationCode
+                ? ` · ${school.schoolAdmin.activationCode}`
+                : ""}
             </Text>
             <TextInput
               style={styles.input}

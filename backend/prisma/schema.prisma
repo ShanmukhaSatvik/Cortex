@@ -27,6 +27,9 @@ model User {
   password String?
   role     Role
 
+  /** Personal login code (school admin / teacher / student). Unique per user. */
+  activationCode String? @unique
+
   schoolId String?
   school   School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
