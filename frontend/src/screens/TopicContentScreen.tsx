@@ -16,11 +16,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
 import SegmentedTabs from "../components/SegmentedTabs";
-import ListCard from "../components/ListCard";
+import ImageNavCard from "../components/ImageNavCard";
 import { useAuth } from "../context/AuthContext";
 import { deleteContent, listContent, uploadContent } from "../services/api";
+import { cardAccent, useTheme } from "../theme";
 import type { ContentItem, ContentType, RootStackParamList } from "../types";
 import { displayContentTitle } from "../utils/youtube";
+
+const videoArt = require("../../assets/illustrations/content-video.png");
+const pdfArt = require("../../assets/illustrations/content-pdf.png");
 
 type Props = NativeStackScreenProps<RootStackParamList, "TopicContent">;
 type Tab = "VIDEO" | "PDF";
@@ -35,6 +39,7 @@ function notify(title: string, message?: string) {
   Alert.alert(title, message);
 }
 export default function TopicContentScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { user, handleAuthError } = useAuth();
   const canEdit = user?.role === "TEACHER" || user?.role === "SCHOOL_ADMIN";
   const [tab, setTab] = useState<Tab>("VIDEO");
@@ -152,35 +157,79 @@ export default function TopicContentScreen({ navigation, route }: Props) {
 
   return (
     <Screen title={route.params.topicName} onBack={() => navigation.goBack()}>
-      <SegmentedTabs
-        items={[
-          { key: "VIDEO", label: "Animations" },
-          { key: "PDF", label: "PDFs" },
-        ]}
-        value={tab}
-        onChange={onTabChange}
-      />
+      <View style={styles.tabsPad}>
+        <SegmentedTabs
+          items={[
+            { key: "VIDEO", label: "Animations" },
+            { key: "PDF", label: "PDFs" },
+          ]}
+          value={tab}
+          onChange={onTabChange}
+        />
+      </View>
 
       {canEdit ? (
-        <View style={styles.uploadBox}>
+        <View
+          style={[
+            styles.uploadBox,
+            { borderBottomColor: theme.colors.border },
+          ]}
+        >
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                borderColor: theme.colors.border,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
             placeholder="Title"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={theme.colors.textMuted}
             value={title}
             onChangeText={setTitle}
           />
-          <Pressable style={styles.uploadBtn} onPress={onUpload} disabled={uploading}>
-            <Text style={styles.uploadText}>{uploading ? "…" : "Upload"}</Text>
+          <Pressable
+            style={[
+              styles.uploadBtn,
+              { backgroundColor: theme.colors.accent },
+            ]}
+            onPress={onUpload}
+            disabled={uploading}
+          >
+            <Text
+              style={[
+                styles.uploadText,
+                {
+                  color: theme.colors.textOnAccent,
+                  fontFamily: theme.fonts.bodyBold,
+                },
+              ]}
+            >
+              {uploading ? "…" : "Upload"}
+            </Text>
           </Pressable>
         </View>
       ) : null}
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <Text
+          style={[
+            styles.error,
+            {
+              color: theme.colors.danger,
+              fontFamily: theme.fonts.bodyBold,
+            },
+          ]}
+        >
+          {error}
+        </Text>
+      ) : null}
 
       {loading || refreshing ? (
         <View style={styles.listLoader}>
-          <ActivityIndicator color="#38bdf8" />
+          <ActivityIndicator color={theme.colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -188,14 +237,24 @@ export default function TopicContentScreen({ navigation, route }: Props) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={
-            <Text style={styles.empty}>
+            <Text
+              style={[
+                styles.empty,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.fonts.body,
+                },
+              ]}
+            >
               No {tab === "VIDEO" ? "animations" : "PDFs"} yet.
             </Text>
           }
-          renderItem={({ item }) => (
-            <ListCard
+          renderItem={({ item, index }) => (
+            <ImageNavCard
               title={displayContentTitle(item.title)}
-              subtitle={tab === "VIDEO" ? "Animation" : "PDF"}
+              subtitle={tab === "VIDEO" ? "Animation" : "PDF lesson"}
+              image={tab === "VIDEO" ? videoArt : pdfArt}
+              accent={cardAccent(theme, index)}
               onPress={() =>
                 navigation.navigate("ContentViewer", {
                   contentId: item.id,
@@ -213,9 +272,8 @@ export default function TopicContentScreen({ navigation, route }: Props) {
   );
 }
 
-
-
 const styles = StyleSheet.create({
+  tabsPad: { paddingHorizontal: 16, paddingTop: 12 },
   uploadBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -223,27 +281,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
   },
   input: {
     flex: 1,
-    backgroundColor: "#1e293b",
-    color: "#f8fafc",
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    borderWidth: 1,
   },
   uploadBtn: {
-    backgroundColor: "#38bdf8",
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  uploadText: { color: "#0f172a", fontWeight: "800" },
+  uploadText: {},
   list: { padding: 16, paddingBottom: 32 },
   listLoader: { flex: 1, alignItems: "center", justifyContent: "center" },
-  empty: { color: "#94a3b8", textAlign: "center", marginTop: 40 },
-  error: { color: "#fca5a5", paddingHorizontal: 16, paddingTop: 8 },
+  empty: { textAlign: "center", marginTop: 40 },
+  error: { paddingHorizontal: 16, paddingTop: 8 },
 });
 
 

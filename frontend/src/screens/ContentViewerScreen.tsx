@@ -6,6 +6,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
 import { useAuth } from "../context/AuthContext";
 import { fetchPdfBase64, getToken, mediaUrl } from "../services/api";
+import { useTheme } from "../theme";
 import type { RootStackParamList } from "../types";
 import {
   displayContentTitle,
@@ -170,6 +171,7 @@ const PDF_BOOTSTRAP_HTML = `<!DOCTYPE html>
 </html>`;
 
 export default function ContentViewerScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { handleAuthError } = useAuth();
   const webRef = useRef<WebView>(null);
   const [uri, setUri] = useState<string | null>(null);
@@ -294,7 +296,7 @@ export default function ContentViewerScreen({ navigation, route }: Props) {
           <WebIFrame src={uri} title={screenTitle} />
           {loading ? (
             <View style={styles.overlay}>
-              <ActivityIndicator color="#38bdf8" size="large" />
+              <ActivityIndicator color={theme.colors.primary} size="large" />
             </View>
           ) : null}
         </View>
@@ -319,7 +321,7 @@ export default function ContentViewerScreen({ navigation, route }: Props) {
           />
           {loading || !pdfBase64 ? (
             <View style={styles.overlay}>
-              <ActivityIndicator color="#38bdf8" size="large" />
+              <ActivityIndicator color={theme.colors.primary} size="large" />
             </View>
           ) : null}
         </View>
@@ -327,7 +329,7 @@ export default function ContentViewerScreen({ navigation, route }: Props) {
 
       {!isPdf && loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color="#38bdf8" size="large" />
+          <ActivityIndicator color={theme.colors.primary} size="large" />
         </View>
       ) : null}
     </Screen>

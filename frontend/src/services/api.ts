@@ -15,8 +15,17 @@ import type {
 
 
 
+function isLoopbackUrl(url: string) {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
+/**
+ * Resolve API base at call-time (not module load).
+ * Expo's LAN host is often empty on first import — caching that made phones
+ * stick on http://localhost:3001 and hang forever while web still worked.
+ */
 function resolveApiUrl() {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim()?.replace(/\/$/, "");
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim()?.replace(/\/$/, "") || "";
   const fromExtra = String(
     (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl || ""
   )
@@ -29,48 +38,57 @@ function resolveApiUrl() {
     typeof window !== "undefined" &&
     /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
 
-  // Production website must never call localhost (hangs in the browser).
+  // Deployed website → production API (never localhost).
   if (isBrowser && !onLocalHost) {
-    if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
-      return fromEnv;
-    }
-    if (fromExtra && !fromExtra.includes("localhost") && !fromExtra.includes("127.0.0.1")) {
-      return fromExtra;
-    }
+    if (fromEnv && !isLoopbackUrl(fromEnv)) return fromEnv;
+    if (fromExtra && !isLoopbackUrl(fromExtra)) return fromExtra;
     return "https://cortex-api-1s2s.onrender.com/api";
   }
 
-  if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
-    return fromEnv;
-  }
-  if (fromExtra && !fromExtra.includes("localhost") && !fromExtra.includes("127.0.0.1")) {
-    return fromExtra;
+  // Explicit non-local URL (e.g. Render) for any platform.
+  if (fromEnv && !isLoopbackUrl(fromEnv)) return fromEnv;
+  if (fromExtra && !isLoopbackUrl(fromExtra)) return fromExtra;
+
+  // Local browser → localhost is fine.
+  if (isBrowser) {
+    return fromEnv || fromExtra || "http://localhost:3001/api";
   }
 
-  if (isBrowser && fromEnv) {
-    return fromEnv;
-  }
-
+  // Native: never use localhost — the phone is not your PC.
+  // Prefer Expo's Metro host (same Wi‑Fi as the phone).
   const hostUri =
     Constants.expoConfig?.hostUri ||
-    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
-    (Constants as any).manifest?.debuggerHost ||
+    (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig
+      ?.debuggerHost ||
+    (Constants as { manifest2?: { extra?: { expoClient?: { hostUri?: string } } } })
+      .manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as { manifest?: { debuggerHost?: string } }).manifest?.debuggerHost ||
     "";
-  const lanHost = String(hostUri).split(":")[0];
+  const lanHost = String(hostUri).split(":")[0]?.trim();
 
-  if (lanHost && lanHost !== "localhost" && lanHost !== "127.0.0.1") {
+  if (lanHost && !isLoopbackUrl(lanHost)) {
     return `http://${lanHost}:3001/api`;
   }
 
+  // Android emulator → host machine.
   if (Platform.OS === "android") {
     return "http://10.0.2.2:3001/api";
   }
 
-  return fromEnv || fromExtra || "http://localhost:3001/api";
+  // Last resort for a physical phone with no Metro host: production API
+  // (same Neon DB). Avoids hanging on phone-localhost.
+  return "https://cortex-api-1s2s.onrender.com/api";
 }
 
-const API_URL = resolveApiUrl();
-
+/** Lazy — re-read Expo host each request so LAN IP is available after Metro connects. */
+export function getApiUrl() {
+  const url = resolveApiUrl();
+  if (__DEV__) {
+    // Helps diagnose web-vs-phone mismatches in the Metro / browser console.
+    console.log("[cortex] API", url);
+  }
+  return url;
+}
 
 const TOKEN_KEY = "cortexToken";
 const USER_KEY = "cortexUser";
@@ -79,7 +97,7 @@ const USER_KEY = "cortexUser";
 let memoryToken: string | null = null;
 let memoryUser: AuthUser | null = null;
 
-export const getApiBase = () => API_URL.replace(/\/api$/, "");
+export const getApiBase = () => getApiUrl().replace(/\/api$/, "");
 
 async function storageSet(key: string, value: string) {
   if (Platform.OS === "web") {
@@ -166,7 +184,22 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const apiUrl = getApiUrl();
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (e: any) {
+    const detail = e?.message || "Network request failed";
+    throw new ApiError(
+      `Cannot reach API (${apiUrl}). ${detail}. Phone and PC must share Wi‑Fi, backend on :3001, or set EXPO_PUBLIC_API_URL to your PC LAN IP.`,
+      0
+    );
+  }
+
   const text = await response.text();
   let data: any = null;
   try {
@@ -322,7 +355,7 @@ function uploadNativeMultipart(payload: {
     } as any);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_URL}/content`);
+    xhr.open("POST", `${getApiUrl()}/content`);
     if (payload.token) {
       xhr.setRequestHeader("Authorization", `Bearer ${payload.token}`);
     }
@@ -394,7 +427,7 @@ export const uploadContent = async (payload: {
           : new File([filePart], payload.fileName, { type: mime })
       );
 
-      const response = await fetch(`${API_URL}/content`, {
+      const response = await fetch(`${getApiUrl()}/content`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
@@ -429,7 +462,7 @@ export const deleteContent = (id: string) =>
 
 /** Optional token query — Android expo-video often cannot send Authorization headers. */
 export const mediaUrl = (contentId: string, token?: string | null) => {
-  const base = `${API_URL}/content/media/${contentId}`;
+  const base = `${getApiUrl()}/content/media/${contentId}`;
   if (!token) return base;
   return `${base}?token=${encodeURIComponent(token)}`;
 };

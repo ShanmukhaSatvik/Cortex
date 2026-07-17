@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useTheme } from "../theme";
 
 type Item = { key: string; label: string };
 
@@ -12,18 +13,49 @@ export default function SegmentedTabs({
   value: string;
   onChange: (key: string) => void;
 }) {
+  const theme = useTheme();
+
   return (
-    <View style={styles.wrap}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderRadius: theme.radii.md,
+        },
+      ]}
+    >
       {items.map((item) => {
         const active = item.key === value;
         return (
           <Pressable
             key={item.key}
-            style={styles.tab}
+            style={[
+              styles.tab,
+              active && {
+                backgroundColor: theme.colors.surface,
+                shadowColor: theme.shadow.color,
+                shadowOffset: theme.shadow.offset,
+                shadowOpacity: theme.shadow.opacity,
+                shadowRadius: 6,
+                elevation: 2,
+              },
+            ]}
             onPress={() => onChange(item.key)}
           >
-            <Text style={[styles.label, active && styles.labelActive]}>{item.label}</Text>
-            <View style={[styles.underline, active && styles.underlineActive]} />
+            <Text
+              style={[
+                styles.label,
+                {
+                  color: active ? theme.colors.primary : theme.colors.textMuted,
+                  fontFamily: active
+                    ? theme.fonts.bodyBold
+                    : theme.fonts.body,
+                },
+              ]}
+            >
+              {item.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -34,30 +66,16 @@ export default function SegmentedTabs({
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#1e293b",
+    padding: 4,
+    gap: 4,
   },
   tab: {
     flex: 1,
     alignItems: "center",
-    paddingTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   label: {
-    color: "#64748b",
-    fontSize: 15,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-  labelActive: {
-    color: "#f8fafc",
-  },
-  underline: {
-    height: 2,
-    width: "56%",
-    borderRadius: 2,
-    backgroundColor: "transparent",
-  },
-  underlineActive: {
-    backgroundColor: "#38bdf8",
+    fontSize: 14,
   },
 });

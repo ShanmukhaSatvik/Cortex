@@ -18,6 +18,9 @@
       }
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cortex-api-1s2s.onrender.com/api"
+      },
       "android": {
         "buildType": "app-bundle"
       }

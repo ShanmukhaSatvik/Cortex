@@ -1,16 +1,19 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, Text } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
-import ListCard from "../components/ListCard";
+import ImageNavCard from "../components/ImageNavCard";
 import { useAuth } from "../context/AuthContext";
 import { listSubjects } from "../services/api";
+import { cardAccent, useTheme } from "../theme";
+import { subjectImage } from "../theme/subjectVisual";
 import type { RootStackParamList, Subject } from "../types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Subjects">;
 
 export default function SubjectsScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { user, logout, handleAuthError } = useAuth();
   const [items, setItems] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,16 +57,39 @@ export default function SubjectsScreen({ navigation, route }: Props) {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <Text
+            style={[
+              styles.help,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
+            Pick a subject to start exploring.
+          </Text>
+        }
         ListEmptyComponent={
-          <Text style={{ color: "#94a3b8", textAlign: "center", marginTop: 40 }}>
+          <Text
+            style={[
+              styles.empty,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
             No subjects for this grade.
           </Text>
         }
-        renderItem={({ item }) => (
-          <ListCard
+        renderItem={({ item, index }) => (
+          <ImageNavCard
             title={item.name}
-            showChevron
+            subtitle="Open chapters"
+            image={subjectImage(item.name)}
+            accent={cardAccent(theme, index)}
             onPress={() =>
               navigation.navigate("Chapters", {
                 subjectId: item.id,
@@ -72,9 +98,14 @@ export default function SubjectsScreen({ navigation, route }: Props) {
               })
             }
           />
-
         )}
       />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: { padding: 16 },
+  help: { marginBottom: 14, fontSize: 15 },
+  empty: { textAlign: "center", marginTop: 40 },
+});

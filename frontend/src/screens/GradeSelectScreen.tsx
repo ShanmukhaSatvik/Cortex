@@ -3,14 +3,16 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
-import ListCard from "../components/ListCard";
+import GradeCard from "../components/GradeCard";
 import { useAuth } from "../context/AuthContext";
 import { listGrades } from "../services/api";
+import { cardAccent, useTheme } from "../theme";
 import type { Grade, RootStackParamList } from "../types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "GradeSelect">;
 
 export default function GradeSelectScreen({ navigation }: Props) {
+  const theme = useTheme();
   const { user, logout, setSelectedGrade, handleAuthError } = useAuth();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,22 +48,85 @@ export default function GradeSelectScreen({ navigation }: Props) {
     >
       {user?.role === "SCHOOL_ADMIN" ? (
         <>
-          <View style={styles.codeCard}>
-            <Text style={styles.codeLabel}>Your activation code</Text>
-            <Text style={styles.codeValue}>{user.activationCode || "—"}</Text>
+          <View
+            style={[
+              styles.codeCard,
+              {
+                backgroundColor: theme.colors.sunSoft,
+                borderColor: theme.colors.sun,
+                borderRadius: theme.radii.md,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.codeLabel,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.fonts.bodyBold,
+                },
+              ]}
+            >
+              Your activation code
+            </Text>
+            <Text
+              style={[
+                styles.codeValue,
+                {
+                  color: theme.colors.text,
+                  fontFamily: theme.fonts.display,
+                },
+              ]}
+            >
+              {user.activationCode || "—"}
+            </Text>
             {user.schoolName ? (
-              <Text style={styles.codeSchool}>{user.schoolName}</Text>
+              <Text
+                style={[
+                  styles.codeSchool,
+                  {
+                    color: theme.colors.text,
+                    fontFamily: theme.fonts.bodyBold,
+                  },
+                ]}
+              >
+                {user.schoolName}
+              </Text>
             ) : null}
-            <Text style={styles.codeHint}>
+            <Text
+              style={[
+                styles.codeHint,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.fonts.body,
+                },
+              ]}
+            >
               Use this personal code with your email to sign in. Each teacher and
               student gets their own code when you create them.
             </Text>
           </View>
           <Pressable
-            style={styles.manageBtn}
+            style={[
+              styles.manageBtn,
+              {
+                backgroundColor: theme.colors.primary,
+                borderRadius: theme.radii.md,
+              },
+            ]}
             onPress={() => navigation.navigate("ManageUsers")}
           >
-            <Text style={styles.manageText}>Manage teachers & students</Text>
+            <Text
+              style={[
+                styles.manageText,
+                {
+                  color: theme.colors.textOnAccent,
+                  fontFamily: theme.fonts.bodyBold,
+                },
+              ]}
+            >
+              Manage teachers & students
+            </Text>
           </Pressable>
         </>
       ) : null}
@@ -69,16 +134,38 @@ export default function GradeSelectScreen({ navigation }: Props) {
       <FlatList
         data={grades}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
-        ListEmptyComponent={<Text style={styles.empty}>No grades available.</Text>}
-        ListHeaderComponent={
-          <Text style={styles.help}>Choose a grade to browse subjects and content.</Text>
+        contentContainerStyle={styles.list}
+        ListEmptyComponent={
+          <Text
+            style={[
+              styles.empty,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
+            No grades available.
+          </Text>
         }
-        renderItem={({ item }) => (
-          <ListCard
-            title={item.name}
-            subtitle={`Level ${item.level}`}
-            showChevron
+        ListHeaderComponent={
+          <Text
+            style={[
+              styles.help,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
+            Choose a grade to browse subjects and content.
+          </Text>
+        }
+        renderItem={({ item, index }) => (
+          <GradeCard
+            name={item.name}
+            level={item.level}
+            accent={cardAccent(theme, index)}
             onPress={() => {
               setSelectedGrade(item.id, item.name);
               navigation.navigate("Subjects", {
@@ -87,7 +174,6 @@ export default function GradeSelectScreen({ navigation }: Props) {
               });
             }}
           />
-
         )}
       />
     </Screen>
@@ -95,35 +181,27 @@ export default function GradeSelectScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  help: { color: "#94a3b8", marginBottom: 12 },
-  empty: { color: "#94a3b8", textAlign: "center", marginTop: 40 },
+  list: { padding: 16 },
+  help: { marginBottom: 12, fontSize: 15 },
+  empty: { textAlign: "center", marginTop: 40 },
   codeCard: {
     marginHorizontal: 16,
     marginTop: 12,
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#334155",
+    padding: 16,
+    borderWidth: 1.5,
   },
-  codeLabel: { color: "#94a3b8", fontSize: 12, fontWeight: "600" },
+  codeLabel: { fontSize: 12 },
   codeValue: {
-    color: "#38bdf8",
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: 1,
+    fontSize: 26,
+    letterSpacing: 2,
     marginTop: 4,
   },
-  codeSchool: { color: "#e2e8f0", marginTop: 4, fontWeight: "600" },
-  codeHint: { color: "#64748b", marginTop: 8, fontSize: 12, lineHeight: 17 },
+  codeSchool: { marginTop: 4 },
+  codeHint: { marginTop: 8, fontSize: 12, lineHeight: 17 },
   manageBtn: {
     marginHorizontal: 16,
     marginTop: 12,
-    backgroundColor: "#1e293b",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#38bdf8",
+    padding: 15,
   },
-  manageText: { color: "#38bdf8", fontWeight: "700", textAlign: "center" },
+  manageText: { textAlign: "center", fontSize: 15 },
 });

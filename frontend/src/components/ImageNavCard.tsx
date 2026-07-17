@@ -1,39 +1,46 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  type ImageSourcePropType,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../theme";
 
-export default function ListCard({
+/** Shared kids-style row card with illustration (grades / subjects / chapters / topics). */
+export default function ImageNavCard({
   title,
   subtitle,
-  onPress,
-  showChevron = false,
-  onDelete,
+  image,
   accent,
-  icon,
+  badge,
+  onPress,
+  onDelete,
 }: {
   title: string;
   subtitle?: string;
-  onPress?: () => void;
-  showChevron?: boolean;
+  image: ImageSourcePropType;
+  accent: string;
+  badge?: string | number;
+  onPress: () => void;
   onDelete?: () => void;
-  /** Left color bar / icon chip */
-  accent?: string;
-  icon?: keyof typeof Ionicons.glyphMap;
 }) {
   const theme = useTheme();
-  const accentColor = accent || theme.colors.primary;
 
   return (
     <View style={styles.wrap}>
       <Pressable
+        onPress={onPress}
         style={[
           styles.card,
           onDelete ? styles.cardWithDelete : null,
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.border,
-            borderRadius: theme.radii.md,
+            borderRadius: theme.radii.lg,
             shadowColor: theme.shadow.color,
             shadowOffset: theme.shadow.offset,
             shadowOpacity: theme.shadow.opacity,
@@ -41,31 +48,36 @@ export default function ListCard({
             elevation: 2,
           },
         ]}
-        onPress={onPress}
-        disabled={!onPress}
       >
-        <View style={[styles.stripe, { backgroundColor: accentColor }]} />
-        <View
-          style={[
-            styles.iconChip,
-            { backgroundColor: `${accentColor}22` },
-          ]}
-        >
-          <Ionicons
-            name={icon || "sparkles-outline"}
-            size={20}
-            color={accentColor}
-          />
+        <View style={[styles.artWrap, { backgroundColor: `${accent}22` }]}>
+          <Image source={image} style={styles.art} resizeMode="contain" />
+          {badge != null ? (
+            <View style={[styles.badge, { backgroundColor: accent }]}>
+              <Text
+                style={[
+                  styles.badgeText,
+                  {
+                    color: theme.colors.textOnAccent,
+                    fontFamily: theme.fonts.display,
+                  },
+                ]}
+              >
+                {badge}
+              </Text>
+            </View>
+          ) : null}
         </View>
+
         <View style={styles.textBlock}>
           <Text
             style={[
               styles.title,
               {
                 color: theme.colors.text,
-                fontFamily: theme.fonts.bodyBold,
+                fontFamily: theme.fonts.display,
               },
             ]}
+            numberOfLines={2}
           >
             {title}
           </Text>
@@ -78,18 +90,14 @@ export default function ListCard({
                   fontFamily: theme.fonts.body,
                 },
               ]}
+              numberOfLines={1}
             >
               {subtitle}
             </Text>
           ) : null}
         </View>
-        {showChevron ? (
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={theme.colors.textMuted}
-          />
-        ) : null}
+
+        <Ionicons name="chevron-forward" size={20} color={accent} />
       </Pressable>
 
       {onDelete ? (
@@ -102,11 +110,7 @@ export default function ListCard({
           hitSlop={6}
           accessibilityLabel="Delete"
         >
-          <Ionicons
-            name="trash-outline"
-            size={16}
-            color={theme.colors.danger}
-          />
+          <Ionicons name="trash-outline" size={16} color={theme.colors.danger} />
         </Pressable>
       ) : null}
     </View>
@@ -119,36 +123,15 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   card: {
-    minHeight: 68,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    paddingLeft: 18,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    padding: 12,
     borderWidth: 1,
-    overflow: "hidden",
+    gap: 12,
   },
   cardWithDelete: {
     paddingRight: 40,
   },
-  stripe: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 5,
-  },
-  iconChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  textBlock: { flex: 1, paddingRight: 4 },
-  title: { fontSize: 16 },
-  subtitle: { marginTop: 3, fontSize: 13 },
   deleteBtn: {
     position: "absolute",
     top: 6,
@@ -160,4 +143,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 3,
   },
+  artWrap: {
+    width: 76,
+    height: 76,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  art: {
+    width: 60,
+    height: 60,
+  },
+  badge: {
+    position: "absolute",
+    right: 4,
+    bottom: 4,
+    minWidth: 26,
+    height: 26,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  badgeText: { fontSize: 13 },
+  textBlock: { flex: 1 },
+  title: { fontSize: 18, lineHeight: 22 },
+  subtitle: { marginTop: 3, fontSize: 13 },
 });

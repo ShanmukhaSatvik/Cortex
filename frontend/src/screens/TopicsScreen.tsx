@@ -1,16 +1,19 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, Text } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../components/Screen";
-import ListCard from "../components/ListCard";
+import ImageNavCard from "../components/ImageNavCard";
 import { useAuth } from "../context/AuthContext";
 import { listTopics } from "../services/api";
+import { cardAccent, useTheme } from "../theme";
+import { topicImage } from "../theme/subjectVisual";
 import type { RootStackParamList, Topic } from "../types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Topics">;
 
 export default function TopicsScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { handleAuthError } = useAuth();
   const [items, setItems] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,16 +48,40 @@ export default function TopicsScreen({ navigation, route }: Props) {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <Text
+            style={[
+              styles.help,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
+            Dive into a topic.
+          </Text>
+        }
         ListEmptyComponent={
-          <Text style={{ color: "#94a3b8", textAlign: "center", marginTop: 40 }}>
+          <Text
+            style={[
+              styles.empty,
+              {
+                color: theme.colors.textMuted,
+                fontFamily: theme.fonts.body,
+              },
+            ]}
+          >
             No topics yet.
           </Text>
         }
-        renderItem={({ item }) => (
-          <ListCard
+        renderItem={({ item, index }) => (
+          <ImageNavCard
             title={item.name}
-            showChevron
+            subtitle="Lessons & animations"
+            image={topicImage()}
+            accent={cardAccent(theme, index)}
+            badge={index + 1}
             onPress={() =>
               navigation.navigate("TopicContent", {
                 topicId: item.id,
@@ -68,3 +95,9 @@ export default function TopicsScreen({ navigation, route }: Props) {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  list: { padding: 16 },
+  help: { marginBottom: 14, fontSize: 15 },
+  empty: { textAlign: "center", marginTop: 40 },
+});

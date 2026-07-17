@@ -4,8 +4,15 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  useFonts,
+  Nunito_400Regular,
+  Nunito_700Bold,
+} from "@expo-google-fonts/nunito";
+import { Fredoka_600SemiBold } from "@expo-google-fonts/fredoka";
 
 import { AuthProvider, useAuth } from "./src/context/AuthContext";
+import { ThemeProvider, useTheme } from "./src/theme";
 import MobileShell from "./src/components/MobileShell";
 import type { RootStackParamList } from "./src/types";
 
@@ -22,6 +29,21 @@ import ContentViewerScreen from "./src/screens/ContentViewerScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+function BootSplash() {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.colors.bgTop,
+        justifyContent: "center",
+      }}
+    >
+      <ActivityIndicator color={theme.colors.primary} size="large" />
+    </View>
+  );
+}
+
 function RootNavigator() {
   const { user, loading } = useAuth();
   const [booted, setBooted] = useState(false);
@@ -31,11 +53,7 @@ function RootNavigator() {
   }, [loading]);
 
   if (!booted || loading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#0f172a", justifyContent: "center" }}>
-        <ActivityIndicator color="#38bdf8" size="large" />
-      </View>
-    );
+    return <BootSplash />;
   }
 
   const initialRoute = !user
@@ -75,16 +93,32 @@ function RootNavigator() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Nunito_400Regular,
+    Nunito_700Bold,
+    Fredoka_600SemiBold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#D9F1FF", justifyContent: "center" }}>
+        <ActivityIndicator color="#0F9B8E" size="large" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <MobileShell>
-          <NavigationContainer>
-            <StatusBar style="light" />
-            <RootNavigator />
-          </NavigationContainer>
-        </MobileShell>
-      </AuthProvider>
+      <ThemeProvider flavorId="cortex-kids">
+        <AuthProvider>
+          <MobileShell>
+            <NavigationContainer>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NavigationContainer>
+          </MobileShell>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

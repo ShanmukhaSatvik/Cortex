@@ -12,14 +12,16 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Screen from "../../components/Screen";
-import ListCard from "../../components/ListCard";
+import SchoolCard from "../../components/SchoolCard";
 import { useAuth } from "../../context/AuthContext";
 import { createSchool, listSchools } from "../../services/api";
+import { cardAccent, useTheme } from "../../theme";
 import type { RootStackParamList, SchoolRow } from "../../types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Schools">;
 
 export default function SchoolsScreen({ navigation }: Props) {
+  const theme = useTheme();
   const { logout, handleAuthError } = useAuth();
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,21 +77,49 @@ export default function SchoolsScreen({ navigation }: Props) {
       error={error}
     >
       <View style={styles.wrap}>
-        <Pressable style={styles.addBtn} onPress={() => setModal(true)}>
-          <Text style={styles.addText}>+ Create school</Text>
+        <Pressable
+          style={[
+            styles.addBtn,
+            {
+              backgroundColor: theme.colors.accent,
+              borderRadius: theme.radii.md,
+            },
+          ]}
+          onPress={() => setModal(true)}
+        >
+          <Text
+            style={[
+              styles.addText,
+              {
+                color: theme.colors.textOnAccent,
+                fontFamily: theme.fonts.bodyBold,
+              },
+            ]}
+          >
+            + Create school
+          </Text>
         </Pressable>
         <FlatList
           data={schools}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 16, paddingTop: 0 }}
           ListEmptyComponent={
-            <Text style={styles.empty}>No schools yet. Create one to begin.</Text>
+            <Text
+              style={[
+                styles.empty,
+                {
+                  color: theme.colors.textMuted,
+                  fontFamily: theme.fonts.body,
+                },
+              ]}
+            >
+              No schools yet. Create one to begin.
+            </Text>
           }
-          renderItem={({ item }) => (
-            <ListCard
-              title={item.name}
-              subtitle={`${item.isActive ? "Active" : "Inactive"} · Admin code ${item.activationCode || "—"} · Teachers ${item.stats.teacherCount} · Students ${item.stats.studentCount} · Logins ${item.stats.distinctLoginUsers}`}
-              showChevron
+          renderItem={({ item, index }) => (
+            <SchoolCard
+              school={item}
+              accent={cardAccent(theme, index)}
               onPress={() =>
                 navigation.navigate("SchoolDetail", {
                   schoolId: item.id,
@@ -97,28 +127,74 @@ export default function SchoolsScreen({ navigation }: Props) {
                 })
               }
             />
-
           )}
         />
       </View>
 
       <Modal visible={modal} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>New school</Text>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.radii.lg,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                {
+                  color: theme.colors.text,
+                  fontFamily: theme.fonts.display,
+                },
+              ]}
+            >
+              New school
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border,
+                  fontFamily: theme.fonts.body,
+                },
+              ]}
               placeholder="School name"
-              placeholderTextColor="#64748b"
+              placeholderTextColor={theme.colors.textMuted}
               value={name}
               onChangeText={setName}
             />
             <View style={styles.modalActions}>
               <Pressable onPress={() => setModal(false)}>
-                <Text style={styles.cancel}>Cancel</Text>
+                <Text
+                  style={{
+                    color: theme.colors.textMuted,
+                    fontFamily: theme.fonts.bodyBold,
+                  }}
+                >
+                  Cancel
+                </Text>
               </Pressable>
-              <Pressable style={styles.saveBtn} onPress={onCreate} disabled={saving}>
-                <Text style={styles.saveText}>{saving ? "..." : "Create"}</Text>
+              <Pressable
+                style={[
+                  styles.saveBtn,
+                  { backgroundColor: theme.colors.accent },
+                ]}
+                onPress={onCreate}
+                disabled={saving}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.textOnAccent,
+                    fontFamily: theme.fonts.bodyBold,
+                  }}
+                >
+                  {saving ? "..." : "Create"}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -132,30 +208,34 @@ const styles = StyleSheet.create({
   wrap: { flex: 1 },
   addBtn: {
     margin: 16,
-    backgroundColor: "#38bdf8",
-    borderRadius: 12,
     padding: 14,
     alignItems: "center",
   },
-  addText: { color: "#0f172a", fontWeight: "800" },
-  empty: { color: "#94a3b8", textAlign: "center", marginTop: 40 },
+  addText: {},
+  empty: { textAlign: "center", marginTop: 40 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(27, 42, 58, 0.45)",
     justifyContent: "center",
     padding: 24,
   },
-  modalCard: { backgroundColor: "#1e293b", borderRadius: 16, padding: 20 },
-  modalTitle: { color: "#f8fafc", fontSize: 18, fontWeight: "700", marginBottom: 12 },
+  modalCard: { padding: 20 },
+  modalTitle: { fontSize: 20, marginBottom: 12 },
   input: {
-    backgroundColor: "#0f172a",
-    color: "#f8fafc",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
+    borderWidth: 1,
   },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 16, alignItems: "center" },
-  cancel: { color: "#94a3b8", fontWeight: "600" },
-  saveBtn: { backgroundColor: "#38bdf8", borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  saveText: { color: "#0f172a", fontWeight: "800" },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 16,
+    alignItems: "center",
+  },
+  saveBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
 });
