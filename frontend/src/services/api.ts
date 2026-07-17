@@ -23,7 +23,23 @@ function resolveApiUrl() {
     .trim()
     .replace(/\/$/, "");
 
-  // Prefer explicit public API (production / EAS / web export)
+  const isBrowser = Platform.OS === "web";
+  const onLocalHost =
+    isBrowser &&
+    typeof window !== "undefined" &&
+    /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+
+  // Production website must never call localhost (hangs in the browser).
+  if (isBrowser && !onLocalHost) {
+    if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
+      return fromEnv;
+    }
+    if (fromExtra && !fromExtra.includes("localhost") && !fromExtra.includes("127.0.0.1")) {
+      return fromExtra;
+    }
+    return "https://cortex-api-1s2s.onrender.com/api";
+  }
+
   if (fromEnv && !fromEnv.includes("localhost") && !fromEnv.includes("127.0.0.1")) {
     return fromEnv;
   }
@@ -31,12 +47,10 @@ function resolveApiUrl() {
     return fromExtra;
   }
 
-  // Browser local override
-  if (Platform.OS === "web" && fromEnv) {
+  if (isBrowser && fromEnv) {
     return fromEnv;
   }
 
-  // On a physical device, Metro's host is this machine's LAN IP (e.g. 192.168.1.9:8081).
   const hostUri =
     Constants.expoConfig?.hostUri ||
     (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
@@ -330,6 +344,7 @@ export const uploadContent = async (payload: {
   uri: string;
   fileName: string;
   mimeType?: string;
+  webFile?: File;
 }) => {
   const token = await getToken();
   const mime =
@@ -343,8 +358,21 @@ export const uploadContent = async (payload: {
       if (payload.description) form.append("description", payload.description);
       form.append("type", payload.type);
       form.append("topicId", payload.topicId);
-      const blob = await (await fetch(payload.uri)).blob();
-      form.append("file", blob, payload.fileName);
+
+      let filePart: Blob | File = payload.webFile as File;
+      if (!filePart) {
+        const res = await fetch(payload.uri);
+        if (!res.ok) {
+          throw new ApiError("Could not read the selected file in the browser.", 0);
+        }
+        filePart = await res.blob();
+      }
+      form.append(
+        "file",
+        filePart instanceof File
+          ? filePart
+          : new File([filePart], payload.fileName, { type: mime })
+      );
 
       const response = await fetch(`${API_URL}/content`, {
         method: "POST",

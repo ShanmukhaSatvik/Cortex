@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +25,15 @@ import { displayContentTitle } from "../utils/youtube";
 type Props = NativeStackScreenProps<RootStackParamList, "TopicContent">;
 type Tab = "VIDEO" | "PDF";
 
+function notify(title: string, message?: string) {
+  const text = message ? `${title}\n${message}` : title;
+  if (Platform.OS === "web") {
+    // Alert.alert is unreliable on RN web
+    window.alert(text);
+    return;
+  }
+  Alert.alert(title, message);
+}
 export default function TopicContentScreen({ navigation, route }: Props) {
   const { user, handleAuthError } = useAuth();
   const canEdit = user?.role === "TEACHER" || user?.role === "SCHOOL_ADMIN";
@@ -67,7 +77,7 @@ export default function TopicContentScreen({ navigation, route }: Props) {
 
   const onUpload = async () => {
     if (!title.trim()) {
-      Alert.alert("Title required", "Enter a title before uploading.");
+      notify("Title required", "Enter a title before uploading.");
       return;
     }
     try {
@@ -93,13 +103,15 @@ export default function TopicContentScreen({ navigation, route }: Props) {
         uri: asset.uri,
         fileName,
         mimeType,
+        // Web picker provides a real File — more reliable than blob: URLs
+        webFile: (asset as { file?: File }).file,
       });
       setTitle("");
-      Alert.alert("Uploaded", `${tab === "PDF" ? "PDF" : "Animation"} added to this topic.`);
+      notify("Uploaded", `${tab === "PDF" ? "PDF" : "Animation"} added to this topic.`);
       await load("soft");
     } catch (e: any) {
       const kind = tab === "PDF" ? "PDF" : "animation";
-      Alert.alert(
+      notify(
         "Upload failed",
         e?.message ||
           `Could not upload this ${kind}. Teachers and school admins can upload files here — try picking the file again.`
@@ -110,18 +122,29 @@ export default function TopicContentScreen({ navigation, route }: Props) {
   };
 
   const onDelete = (item: ContentItem) => {
+    const runDelete = async () => {
+      try {
+        await deleteContent(item.id);
+        await load("soft");
+      } catch (e: any) {
+        notify("Error", e?.message || "Delete failed");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm(`Delete "${item.title}"?`)) {
+        void runDelete();
+      }
+      return;
+    }
+
     Alert.alert("Delete", `Delete "${item.title}"?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteContent(item.id);
-            await load("soft");
-          } catch (e: any) {
-            Alert.alert("Error", e?.message || "Delete failed");
-          }
+        onPress: () => {
+          void runDelete();
         },
       },
     ]);
